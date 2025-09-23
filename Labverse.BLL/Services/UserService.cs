@@ -128,6 +128,7 @@ public class UserService : IUserService
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt,
             IsActive = user.IsActive,
+            EmailVerifiedAt = user.EmailVerifiedAt,
             Subscription = isUserScriptionActive ? "Premium" : "Free"
         };
     }

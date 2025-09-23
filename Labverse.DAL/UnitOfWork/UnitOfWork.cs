@@ -13,6 +13,7 @@ public class UnitOfWork : IUnitOfWork
 
     public IUserRepository Users { get; }
     public IRefreshTokenRepository RefreshTokens { get; }
+    public IEmailVerificationTokenRepository EmailVerificationTokens { get; }
 
     public IRepository<Badge> Badges { get; }
     public IRepository<Subscription> Subscriptions { get; }
@@ -23,12 +24,13 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<UserBadge> UserBadges { get; }
 
 
-    public UnitOfWork(LabverseDbContext context, IUserRepository userRepository, IRefreshTokenRepository refreshTokenRepository)
+    public UnitOfWork(LabverseDbContext context, IUserRepository userRepository, IRefreshTokenRepository refreshTokenRepository, IEmailVerificationTokenRepository emailVerificationTokenRepository)
     {
         _context = context;
 
         Users = userRepository;
         RefreshTokens = refreshTokenRepository;
+        EmailVerificationTokens = emailVerificationTokenRepository;
 
         Badges = new Repository<Badge>(_context);
         Subscriptions = new Repository<Subscription>(_context);
