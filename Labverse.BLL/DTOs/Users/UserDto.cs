@@ -13,4 +13,5 @@ public class UserDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool IsActive { get; set; }
+    public string Subscription { get; set; } = "Free"; // Free, Premium
 }

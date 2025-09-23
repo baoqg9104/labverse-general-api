@@ -22,6 +22,9 @@ public class LabverseDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<User>().HasQueryFilter(u => u.IsActive);
+        modelBuilder.Entity<Lab>().HasQueryFilter(u => u.IsActive);
+
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<UserProgress>()

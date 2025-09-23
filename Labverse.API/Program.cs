@@ -11,10 +11,31 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-// Load environment variables from .env file
-Env.Load();
-
 var builder = WebApplication.CreateBuilder(args);
+
+// Define the current environment (Development, Staging, Production)
+var envName = builder.Environment.EnvironmentName.ToLower();
+
+// Load base .env file
+if (File.Exists(".env"))
+{
+    Env.Load(".env");
+}
+
+// Load environment-specific configuration
+var envFile = envName switch
+{
+    "development" => ".env.development",
+    "staging" => ".env.staging",
+    "production" => ".env.production",
+    _ => ".env",
+};
+
+// Load the environment-specific .env file if it exists (override variables)
+if (File.Exists(envFile))
+{
+    Env.Load(envFile);
+}
 
 // JWT__Key => Jwt:Key
 builder.Configuration.AddEnvironmentVariables();
@@ -59,6 +80,21 @@ builder.Services.AddSwaggerGen(options =>
     );
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "AllowFrontend",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+    );
+});
+
 // Configure DbContext with SQL Server
 builder.Services.AddDbContext<LabverseDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -75,6 +111,10 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ILabService, LabService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
+
+// Register Recaptcha Service with HttpClient
+builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
 // Configure JWT settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
@@ -86,6 +126,17 @@ var jwtSettings =
 var keyBytes = Encoding.UTF8.GetBytes(
     jwtSettings.Key ?? throw new InvalidOperationException("JWT key is missing")
 );
+
+// Configure Recaptcha settings
+builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("Recaptcha"));
+
+var recaptchaSettings =
+    builder.Configuration.GetSection("Recaptcha").Get<RecaptchaSettings>()
+    ?? throw new InvalidOperationException("Recaptcha settings not configured.");
+
+var recaptchaSecretKey =
+    recaptchaSettings.SecretKey
+    ?? throw new InvalidOperationException("Recaptcha secret key is missing.");
 
 // Configure Authentication and Authorization
 builder
@@ -106,7 +157,6 @@ builder
             ValidIssuer = jwtSettings.Issuer,
             ValidAudience = jwtSettings.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-
             ClockSkew = TimeSpan.Zero,
         };
     });
@@ -121,6 +171,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 

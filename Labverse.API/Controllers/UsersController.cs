@@ -2,6 +2,7 @@
 using Labverse.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Labverse.API.Controllers;
 
@@ -12,12 +13,19 @@ public class UsersController : ControllerBase
     private readonly IUserService _userService;
     private readonly IJwtService _jwtService;
     private readonly IRefreshTokenService _refreshTokenService;
+    private readonly IRecaptchaService _recaptchaService;
 
-    public UsersController(IUserService userService, IJwtService jwtService, IRefreshTokenService refreshTokenService)
+    public UsersController(
+        IUserService userService,
+        IJwtService jwtService,
+        IRefreshTokenService refreshTokenService,
+        IRecaptchaService recaptchaService
+    )
     {
         _userService = userService;
         _jwtService = jwtService;
         _refreshTokenService = refreshTokenService;
+        _recaptchaService = recaptchaService;
     }
 
     [HttpGet]
@@ -33,7 +41,24 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetUser(int id)
     {
         var user = await _userService.GetByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
+        return Ok(user);
+    }
+
+    // Get me
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetMe()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+            return Unauthorized();
+        if (!int.TryParse(userId, out var userIdInt))
+            return Unauthorized();
+        var user = await _userService.GetByIdAsync(userIdInt);
+        if (user == null)
+            return NotFound();
         return Ok(user);
     }
 
@@ -53,7 +78,6 @@ public class UsersController : ControllerBase
         return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
     }
 
-
     [HttpDelete("{id}")]
     [Authorize]
     public async Task<IActionResult> DeleteUser(int id)
@@ -65,25 +89,63 @@ public class UsersController : ControllerBase
     [HttpPost("authenticate")]
     public async Task<IActionResult> Authenticate([FromBody] AuthRequestDto dto)
     {
-        var user = await _userService.Authenticate(dto);
-        if (user == null) return Unauthorized("Invalid credentials");
+        // Verify reCAPTCHA
+        var isRecaptchaValid = await _recaptchaService.VerifyTokenAsync(dto.RecaptchaToken);
 
-        var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.Username, user.Role);
+        if (!isRecaptchaValid)
+            return BadRequest("Invalid reCAPTCHA");
+
+        // Authenticate user
+        var user = await _userService.Authenticate(dto);
+        if (user == null)
+            return Unauthorized("Invalid credentials");
+
+        var accessToken = _jwtService.GenerateAccessToken(user);
+
         var refreshToken = await _refreshTokenService.GenerateAndSaveAsync(user.Id);
 
-        var response = new AuthResponseDto
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken.Token,
-            User = new AuthUserDto
+        Response.Cookies.Append(
+            "refreshToken",
+            refreshToken.Token,
+            new CookieOptions
             {
-                Id = user.Id,
-                Email = user.Email,
-                Username = user.Username,
-                Role = user.Role
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = refreshToken.Expires,
             }
-        };
+        );
+
+        var response = new AuthResponseDto { AccessToken = accessToken };
 
         return Ok(response);
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var refreshTokenCookie = Request.Cookies["refreshToken"];
+
+        if (!string.IsNullOrEmpty(refreshTokenCookie))
+        {
+            // Revoke refresh token
+            await _refreshTokenService.RevokeAsync(refreshTokenCookie);
+
+            // Delete refresh token cookie
+            Response.Cookies.Append(
+                "refreshToken",
+                "",
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTime.UtcNow.AddDays(-1),
+                    Domain = "localhost",
+                }
+            );
+        }
+
+        return Ok(new { message = "Logged out successfully" });
     }
 }

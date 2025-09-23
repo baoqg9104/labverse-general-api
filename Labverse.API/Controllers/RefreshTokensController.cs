@@ -1,20 +1,22 @@
 ﻿using Labverse.BLL.DTOs.Users;
 using Labverse.BLL.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Labverse.API.Controllers;
 
 [Route("api/refresh-tokens")]
 [ApiController]
-[Authorize]
 public class RefreshTokensController : ControllerBase
 {
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly IUserService _userService;
     private readonly IJwtService _jwtService;
 
-    public RefreshTokensController(IRefreshTokenService refreshTokenService, IUserService userService, IJwtService jwtService)
+    public RefreshTokensController(
+        IRefreshTokenService refreshTokenService,
+        IUserService userService,
+        IJwtService jwtService
+    )
     {
         _refreshTokenService = refreshTokenService;
         _userService = userService;
@@ -25,7 +27,8 @@ public class RefreshTokensController : ControllerBase
     public async Task<IActionResult> GetByToken(string token)
     {
         var refreshToken = await _refreshTokenService.GetByTokenAsync(token);
-        if (refreshToken == null) return NotFound();
+        if (refreshToken == null)
+            return NotFound();
         return Ok(refreshToken);
     }
 
@@ -44,35 +47,48 @@ public class RefreshTokensController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(string token)
+    public async Task<IActionResult> Refresh()
     {
-        var refreshToken = await _refreshTokenService.GetByTokenAsync(token);
+        // Get refresh token from cookies
+        var refreshTokenCookie = Request.Cookies["refreshToken"];
 
-        if (refreshToken == null) return Unauthorized("Invalid or expired refresh token");
+        if (string.IsNullOrEmpty(refreshTokenCookie))
+            return Unauthorized("Refresh token not found");
 
-        await _refreshTokenService.MarkAsUsedAsync(token);
+        // Validate refresh token
+        var refreshToken = await _refreshTokenService.GetByTokenAsync(refreshTokenCookie);
 
+        if (refreshToken == null)
+            return Unauthorized("Invalid or expired refresh token");
+
+        // Mark the old refresh token as used
+        await _refreshTokenService.MarkAsUsedAsync(refreshTokenCookie);
+
+        // Get the user associated with the refresh token
         var user = await _userService.GetByIdAsync(refreshToken.UserId);
 
         if (user == null)
-            return Unauthorized();
+            return Unauthorized("User not found");
 
-        var newAccessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, user.Username, user.Role);
+        // Generate new access token and refresh token
+        var newAccessToken = _jwtService.GenerateAccessToken(user);
 
         var newRefreshToken = await _refreshTokenService.GenerateAndSaveAsync(user.Id);
 
-        var response = new AuthResponseDto
-        {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken.Token,
-            User = new AuthUserDto
+        // Set the new refresh token in cookies
+        Response.Cookies.Append(
+            "refreshToken",
+            newRefreshToken.Token,
+            new CookieOptions
             {
-                Id = user.Id,
-                Email = user.Email,
-                Username = user.Username,
-                Role = user.Role
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = refreshToken.Expires,
             }
-        };
+        );
+
+        var response = new AuthResponseDto { AccessToken = newAccessToken };
 
         return Ok(response);
     }

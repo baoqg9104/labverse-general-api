@@ -1,8 +1,8 @@
-﻿using Labverse.DAL.EntitiesModels;
+﻿using Labverse.BLL.DTOs.Users;
 
 namespace Labverse.BLL.Interfaces;
 
 public interface IJwtService
 {
-    string GenerateAccessToken(int userId, string email, string username, UserRole role);
+    string GenerateAccessToken(UserDto user);
 }

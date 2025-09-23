@@ -2,16 +2,19 @@
 using Labverse.BLL.Interfaces;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 
 namespace Labverse.BLL.Services;
 
 public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserSubscriptionService _userSubscriptionService;
 
-    public UserService(IUnitOfWork unitOfWork)
+    public UserService(IUnitOfWork unitOfWork, IUserSubscriptionService userSubscriptionService)
     {
         _unitOfWork = unitOfWork;
+        _userSubscriptionService = userSubscriptionService;
     }
 
     public async Task<UserDto> AddAsync(CreateUserDto dto)
@@ -58,13 +61,34 @@ public class UserService : IUserService
 
     public async Task<IEnumerable<UserDto>> GetAllAsync()
     {
-        var users = await _unitOfWork.Users.GetAllAsync();
+        var users = await _unitOfWork.Users
+            .Query()
+            .Include(u => u.UserSubscriptions)
+            .ToListAsync();
+
         return users.Select(MapToDto);
     }
 
     public async Task<UserDto?> GetByIdAsync(int id)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(id);
+        //var user = await _unitOfWork.Users.GetByIdAsync(id);
+
+        //string subscriptionName = "Free";
+        //if (user != null)
+        //{
+        //    var userScriptionActive = await _userSubscriptionService.GetUserSubscriptionActiveAsync(user.Id);
+
+        //    if (userScriptionActive != null)
+        //    {
+        //        subscriptionName = "Premium";
+        //    }
+        //}
+
+        var user = await _unitOfWork.Users
+            .Query()
+            .Include(u => u.UserSubscriptions)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
         return user == null ? null : MapToDto(user);
     }
 
@@ -90,6 +114,9 @@ public class UserService : IUserService
 
     private static UserDto MapToDto(User user)
     {
+        var now = DateTime.UtcNow;
+        var isUserScriptionActive = user.UserSubscriptions.Any(us => us.StartDate <= now && us.EndDate > now);
+
         return new UserDto
         {
             Id = user.Id,
@@ -100,7 +127,8 @@ public class UserService : IUserService
             Role = user.Role,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt,
-            IsActive = user.IsActive
+            IsActive = user.IsActive,
+            Subscription = isUserScriptionActive ? "Premium" : "Free"
         };
     }
 }

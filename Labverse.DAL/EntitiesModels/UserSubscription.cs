@@ -7,6 +7,8 @@ public class UserSubscription : BaseEntity
     public DateTime StartDate { get; set; } = DateTime.UtcNow;
     public DateTime EndDate { get; set; }
 
+    public bool IsExpired => DateTime.UtcNow >= EndDate;
+
     public User User { get; set; } = null!;
     public Subscription Subscription { get; set; } = null!;
 }

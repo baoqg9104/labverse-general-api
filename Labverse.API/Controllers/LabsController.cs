@@ -2,6 +2,7 @@
 using Labverse.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Labverse.API.Controllers;
 
@@ -28,7 +29,8 @@ public class LabsController : ControllerBase
     public async Task<IActionResult> GetLab(int id)
     {
         var lab = await _labService.GetByIdAsync(id);
-        if (lab == null) return NotFound();
+        if (lab == null)
+            return NotFound();
         return Ok(lab);
     }
 
@@ -42,8 +44,9 @@ public class LabsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateLab([FromBody] CreateLabDto dto)
     {
-        var authorId = User.FindFirst("sub")?.Value;
-        if (authorId == null) return Unauthorized();
+        var authorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (authorId == null)
+            return Unauthorized();
 
         if (!int.TryParse(authorId, out var authorIdInt))
             return Unauthorized();

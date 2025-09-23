@@ -1,4 +1,5 @@
-﻿using Labverse.BLL.Interfaces;
+﻿using Labverse.BLL.DTOs.Users;
+using Labverse.BLL.Interfaces;
 using Labverse.BLL.Settings;
 using Labverse.DAL.EntitiesModels;
 using Microsoft.Extensions.Options;
@@ -18,20 +19,20 @@ public class JwtService : IJwtService
         _jwtSettings = jwtSettings.Value;
     }
 
-    public string GenerateAccessToken(int userId, string email, string username, UserRole role)
+    public string GenerateAccessToken(UserDto user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        string roleStr = Enum.GetName(typeof(UserRole), role) ?? "user";
+        string roleStr = Enum.GetName(typeof(UserRole), user.Role) ?? "user";
 
         roleStr = roleStr.ToLower();
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email),
-            new Claim(JwtRegisteredClaimNames.Name, username),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Name, user.Username),
             new Claim("role", roleStr),
         };
 
