@@ -7,6 +7,7 @@ public interface IUnitOfWork : IDisposable
 {
     IUserRepository Users { get; }
     IRefreshTokenRepository RefreshTokens { get; }
+    IEmailVerificationTokenRepository EmailVerificationTokens { get; }
 
     IRepository<Badge> Badges { get; }
     IRepository<Subscription> Subscriptions { get; }

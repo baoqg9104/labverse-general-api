@@ -14,36 +14,56 @@ public class UsersController : ControllerBase
     private readonly IJwtService _jwtService;
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly IRecaptchaService _recaptchaService;
+    private readonly IEmailVerificationService _emailVerificationService;
+    private readonly IEmailService _emailService;
 
     public UsersController(
         IUserService userService,
         IJwtService jwtService,
         IRefreshTokenService refreshTokenService,
-        IRecaptchaService recaptchaService
+        IRecaptchaService recaptchaService,
+        IEmailVerificationService emailVerificationService,
+        IEmailService emailService
     )
     {
         _userService = userService;
         _jwtService = jwtService;
         _refreshTokenService = refreshTokenService;
         _recaptchaService = recaptchaService;
+        _emailVerificationService = emailVerificationService;
+        _emailService = emailService;
     }
 
     [HttpGet]
     [Authorize]
     public async Task<IActionResult> GetUsers()
     {
-        var users = await _userService.GetAllAsync();
-        return Ok(users);
+        try
+        {
+            var users = await _userService.GetAllAsync();
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            return Error("GET_USERS_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpGet("{id}")]
     [Authorize]
     public async Task<IActionResult> GetUser(int id)
     {
-        var user = await _userService.GetByIdAsync(id);
-        if (user == null)
-            return NotFound();
-        return Ok(user);
+        try
+        {
+            var user = await _userService.GetByIdAsync(id);
+            if (user == null)
+                return Error("USER_NOT_FOUND", "User not found", 404);
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            return Error("GET_USER_ERROR", ex.Message, 500);
+        }
     }
 
     // Get me
@@ -51,101 +71,228 @@ public class UsersController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetMe()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userId == null)
-            return Unauthorized();
-        if (!int.TryParse(userId, out var userIdInt))
-            return Unauthorized();
-        var user = await _userService.GetByIdAsync(userIdInt);
-        if (user == null)
-            return NotFound();
-        return Ok(user);
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+                return Error("UNAUTHORIZED", "User not authenticated", 401);
+            if (!int.TryParse(userId, out var userIdInt))
+                return Error("UNAUTHORIZED", "Invalid user id", 401);
+            var user = await _userService.GetByIdAsync(userIdInt);
+            if (user == null)
+                return Error("USER_NOT_FOUND", "User not found", 404);
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            return Error("GET_ME_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpPatch("{id}")]
     [Authorize]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
     {
-        await _userService.UpdateAsync(id, dto);
-        return NoContent();
+        try
+        {
+            await _userService.UpdateAsync(id, dto);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (Exception ex)
+        {
+            return Error("UPDATE_USER_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)
     {
-        var user = await _userService.AddAsync(dto);
-        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+        try
+        {
+            var user = await _userService.AddAsync(dto);
+            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Error("EMAIL_EXISTS", ex.Message, 400);
+        }
+        catch (Exception ex)
+        {
+            return Error("CREATE_USER_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpDelete("{id}")]
     [Authorize]
     public async Task<IActionResult> DeleteUser(int id)
     {
-        await _userService.DeleteAsync(id);
-        return NoContent();
+        try
+        {
+            await _userService.DeleteAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (Exception ex)
+        {
+            return Error("DELETE_USER_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpPost("authenticate")]
     public async Task<IActionResult> Authenticate([FromBody] AuthRequestDto dto)
     {
-        // Verify reCAPTCHA
         var isRecaptchaValid = await _recaptchaService.VerifyTokenAsync(dto.RecaptchaToken);
-
         if (!isRecaptchaValid)
-            return BadRequest("Invalid reCAPTCHA");
+            return Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
+        try
+        {
+            var user = await _userService.Authenticate(dto);
+            if (user == null)
+                return Error("INVALID_CREDENTIALS", "Invalid credentials", 401);
 
-        // Authenticate user
-        var user = await _userService.Authenticate(dto);
-        if (user == null)
-            return Unauthorized("Invalid credentials");
-
-        var accessToken = _jwtService.GenerateAccessToken(user);
-
-        var refreshToken = await _refreshTokenService.GenerateAndSaveAsync(user.Id);
-
-        Response.Cookies.Append(
-            "refreshToken",
-            refreshToken.Token,
-            new CookieOptions
+            if (user.EmailVerifiedAt == null)
             {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = refreshToken.Expires,
+                await SendVerificationEmailAsync(user.Id, user.Email);
+                return Error(
+                    "EMAIL_NOT_VERIFIED",
+                    "Email not verified. A new verification email has been sent.",
+                    401
+                );
             }
-        );
 
-        var response = new AuthResponseDto { AccessToken = accessToken };
-
-        return Ok(response);
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAndSaveAsync(user.Id);
+            Response.Cookies.Append(
+                "refreshToken",
+                refreshToken.Token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = refreshToken.Expires,
+                }
+            );
+            var response = new AuthResponseDto { AccessToken = accessToken };
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+            when (ex.Message == "Account exists but email is not verified")
+        {
+            return Error("EMAIL_NOT_VERIFIED", "Account exists but email is not verified", 401);
+        }
+        catch (Exception ex)
+        {
+            return Error("AUTHENTICATE_ERROR", ex.Message, 500);
+        }
     }
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        var refreshTokenCookie = Request.Cookies["refreshToken"];
-
-        if (!string.IsNullOrEmpty(refreshTokenCookie))
+        try
         {
-            // Revoke refresh token
-            await _refreshTokenService.RevokeAsync(refreshTokenCookie);
+            var refreshTokenCookie = Request.Cookies["refreshToken"];
+            if (!string.IsNullOrEmpty(refreshTokenCookie))
+            {
+                await _refreshTokenService.RevokeAsync(refreshTokenCookie);
+                Response.Cookies.Append(
+                    "refreshToken",
+                    "",
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = false,
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTime.UtcNow.AddDays(-1),
+                        Domain = "localhost",
+                    }
+                );
+            }
+            return Ok(new { message = "Logged out successfully" });
+        }
+        catch (Exception ex)
+        {
+            return Error("LOGOUT_ERROR", ex.Message, 500);
+        }
+    }
 
-            // Delete refresh token cookie
-            Response.Cookies.Append(
-                "refreshToken",
-                "",
-                new CookieOptions
+    [HttpPost("signup")]
+    public async Task<IActionResult> Signup([FromBody] CreateUserDto dto)
+    {
+        var isRecaptchaValid = await _recaptchaService.VerifyTokenAsync(dto.RecaptchaToken);
+        if (!isRecaptchaValid)
+            return Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
+        try
+        {
+            var user = await _userService.AddAsync(dto);
+            await SendVerificationEmailAsync(user.Id, user.Email);
+            return Ok(
+                new
                 {
-                    HttpOnly = true,
-                    Secure = false,
-                    SameSite = SameSiteMode.Lax,
-                    Expires = DateTime.UtcNow.AddDays(-1),
-                    Domain = "localhost",
+                    message = "Signup successful. Please check your email to verify your account.",
                 }
             );
         }
+        catch (InvalidOperationException ex)
+        {
+            return Error("EMAIL_EXISTS", ex.Message, 400);
+        }
+        catch (Exception ex)
+        {
+            return Error("SIGNUP_ERROR", ex.Message, 500);
+        }
+    }
 
-        return Ok(new { message = "Logged out successfully" });
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+    {
+        try
+        {
+            var result = await _emailVerificationService.VerifyTokenAsync(token);
+            if (!result)
+                return Error("INVALID_OR_EXPIRED_TOKEN", "Invalid or expired token", 400);
+            return Ok(new { message = "Email verified successfully." });
+        }
+        catch (Exception ex)
+        {
+            return Error("VERIFY_EMAIL_ERROR", ex.Message, 500);
+        }
+    }
+
+    public class ErrorResponse
+    {
+        public string Code { get; set; }
+        public string Message { get; set; }
+
+        public ErrorResponse(string code, string message)
+        {
+            Code = code;
+            Message = message;
+        }
+    }
+
+    private IActionResult Error(string code, string message, int statusCode = 400)
+    {
+        return StatusCode(statusCode, new { error = new ErrorResponse(code, message) });
+    }
+
+    private async Task SendVerificationEmailAsync(int userId, string email)
+    {
+        var token = await _emailVerificationService.GenerateAndSaveTokenAsync(userId);
+        var verifyUrl = $"https://localhost:7106/api/users/verify-email?token={token}";
+        await _emailService.SendEmailAsync(
+            email,
+            "Verify your email",
+            $"<a href='{verifyUrl}'>Click here to verify your email</a>"
+        );
     }
 }

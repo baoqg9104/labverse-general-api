@@ -15,4 +15,7 @@ public class CreateUserDto
     [Required(ErrorMessage = "Username is required")]
     [StringLength(20, ErrorMessage = "Username cannot exceed 20 characters")]
     public string Username { get; set; }
+
+    public string RecaptchaToken { get; set; }
+
 }
