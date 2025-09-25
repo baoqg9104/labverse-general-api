@@ -25,12 +25,14 @@ public class UserService : IUserService
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
-        var user = await _unitOfWork.Users.AddAsync(new User
-        {
-            Email = dto.Email,
-            PasswordHash = passwordHash,
-            Username = dto.Username,
-        });
+        var user = await _unitOfWork.Users.AddAsync(
+            new User
+            {
+                Email = dto.Email,
+                PasswordHash = passwordHash,
+                Username = dto.Username,
+            }
+        );
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -53,18 +55,21 @@ public class UserService : IUserService
     public async Task DeleteAsync(int id)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
-        if (user == null) throw new KeyNotFoundException("User not found");
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
 
         _unitOfWork.Users.Remove(user);
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<UserDto>> GetAllAsync()
+    public async Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false)
     {
-        var users = await _unitOfWork.Users
-            .Query()
-            .Include(u => u.UserSubscriptions)
-            .ToListAsync();
+        var users = await _unitOfWork.Users.Query().Include(u => u.UserSubscriptions).ToListAsync();
+
+        if (isOnlyVerifiedUser == true)
+        {
+            users = users.Where(u => u.EmailVerifiedAt != null).ToList();
+        }
 
         return users.Select(MapToDto);
     }
@@ -84,8 +89,8 @@ public class UserService : IUserService
         //    }
         //}
 
-        var user = await _unitOfWork.Users
-            .Query()
+        var user = await _unitOfWork
+            .Users.Query()
             .Include(u => u.UserSubscriptions)
             .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -95,7 +100,8 @@ public class UserService : IUserService
     public async Task UpdateAsync(int id, UpdateUserDto dto)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
-        if (user == null) throw new KeyNotFoundException("User not found");
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
 
         if (!string.IsNullOrWhiteSpace(dto.Password))
         {
@@ -115,7 +121,9 @@ public class UserService : IUserService
     private static UserDto MapToDto(User user)
     {
         var now = DateTime.UtcNow;
-        var isUserScriptionActive = user.UserSubscriptions.Any(us => us.StartDate <= now && us.EndDate > now);
+        var isUserScriptionActive = user.UserSubscriptions.Any(us =>
+            us.StartDate <= now && us.EndDate > now
+        );
 
         return new UserDto
         {
@@ -129,7 +137,7 @@ public class UserService : IUserService
             UpdatedAt = user.UpdatedAt,
             IsActive = user.IsActive,
             EmailVerifiedAt = user.EmailVerifiedAt,
-            Subscription = isUserScriptionActive ? "Premium" : "Free"
+            Subscription = isUserScriptionActive ? "Premium" : "Free",
         };
     }
 }

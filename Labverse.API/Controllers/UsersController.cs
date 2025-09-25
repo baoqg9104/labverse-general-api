@@ -1,4 +1,5 @@
-﻿using Labverse.BLL.DTOs.Users;
+﻿using Labverse.API.Helpers;
+using Labverse.BLL.DTOs.Users;
 using Labverse.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,16 +40,16 @@ public class UsersController : ControllerBase
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetUsers()
+    public async Task<IActionResult> GetUsers([FromQuery] bool? isOnlyVerifiedUser = false)
     {
         try
         {
-            var users = await _userService.GetAllAsync();
+            var users = await _userService.GetAllAsync(isOnlyVerifiedUser);
             return Ok(users);
         }
         catch (Exception ex)
         {
-            return Error("GET_USERS_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("GET_USERS_ERROR", ex.Message, 500);
         }
     }
 
@@ -60,12 +61,12 @@ public class UsersController : ControllerBase
         {
             var user = await _userService.GetByIdAsync(id);
             if (user == null)
-                return Error("USER_NOT_FOUND", "User not found", 404);
+                return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
             return Ok(user);
         }
         catch (Exception ex)
         {
-            return Error("GET_USER_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("GET_USER_ERROR", ex.Message, 500);
         }
     }
 
@@ -78,17 +79,17 @@ public class UsersController : ControllerBase
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)
-                return Error("UNAUTHORIZED", "User not authenticated", 401);
+                return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
             if (!int.TryParse(userId, out var userIdInt))
-                return Error("UNAUTHORIZED", "Invalid user id", 401);
+                return ApiErrorHelper.Error("UNAUTHORIZED", "Invalid user id", 401);
             var user = await _userService.GetByIdAsync(userIdInt);
             if (user == null)
-                return Error("USER_NOT_FOUND", "User not found", 404);
+                return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
             return Ok(user);
         }
         catch (Exception ex)
         {
-            return Error("GET_ME_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("GET_ME_ERROR", ex.Message, 500);
         }
     }
 
@@ -103,11 +104,11 @@ public class UsersController : ControllerBase
         }
         catch (KeyNotFoundException)
         {
-            return Error("USER_NOT_FOUND", "User not found", 404);
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
         }
         catch (Exception ex)
         {
-            return Error("UPDATE_USER_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("UPDATE_USER_ERROR", ex.Message, 500);
         }
     }
 
@@ -122,11 +123,11 @@ public class UsersController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return Error("EMAIL_EXISTS", ex.Message, 400);
+            return ApiErrorHelper.Error("EMAIL_EXISTS", ex.Message, 400);
         }
         catch (Exception ex)
         {
-            return Error("CREATE_USER_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("CREATE_USER_ERROR", ex.Message, 500);
         }
     }
 
@@ -141,11 +142,11 @@ public class UsersController : ControllerBase
         }
         catch (KeyNotFoundException)
         {
-            return Error("USER_NOT_FOUND", "User not found", 404);
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
         }
         catch (Exception ex)
         {
-            return Error("DELETE_USER_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("DELETE_USER_ERROR", ex.Message, 500);
         }
     }
 
@@ -154,17 +155,17 @@ public class UsersController : ControllerBase
     {
         var isRecaptchaValid = await _recaptchaService.VerifyTokenAsync(dto.RecaptchaToken);
         if (!isRecaptchaValid)
-            return Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
+            return ApiErrorHelper.Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
         try
         {
             var user = await _userService.Authenticate(dto);
             if (user == null)
-                return Error("INVALID_CREDENTIALS", "Invalid credentials", 401);
+                return ApiErrorHelper.Error("INVALID_CREDENTIALS", "Invalid credentials", 401);
 
             if (user.EmailVerifiedAt == null)
             {
                 await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
-                return Error("EMAIL_NOT_VERIFIED", "Email not verified.", 401);
+                return ApiErrorHelper.Error("EMAIL_NOT_VERIFIED", "Email not verified.", 401);
             }
 
             var accessToken = _jwtService.GenerateAccessToken(user);
@@ -186,11 +187,15 @@ public class UsersController : ControllerBase
         catch (InvalidOperationException ex)
             when (ex.Message == "Account exists but email is not verified")
         {
-            return Error("EMAIL_NOT_VERIFIED", "Account exists but email is not verified", 401);
+            return ApiErrorHelper.Error(
+                "EMAIL_NOT_VERIFIED",
+                "Account exists but email is not verified",
+                401
+            );
         }
         catch (Exception ex)
         {
-            return Error("AUTHENTICATE_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("AUTHENTICATE_ERROR", ex.Message, 500);
         }
     }
 
@@ -220,7 +225,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Error("LOGOUT_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("LOGOUT_ERROR", ex.Message, 500);
         }
     }
 
@@ -229,7 +234,7 @@ public class UsersController : ControllerBase
     {
         var isRecaptchaValid = await _recaptchaService.VerifyTokenAsync(dto.RecaptchaToken);
         if (!isRecaptchaValid)
-            return Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
+            return ApiErrorHelper.Error("INVALID_RECAPTCHA", "Invalid reCAPTCHA", 400);
         try
         {
             var user = await _userService.AddAsync(dto);
@@ -243,11 +248,11 @@ public class UsersController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return Error("EMAIL_EXISTS", ex.Message, 400);
+            return ApiErrorHelper.Error("EMAIL_EXISTS", ex.Message, 400);
         }
         catch (Exception ex)
         {
-            return Error("SIGNUP_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("SIGNUP_ERROR", ex.Message, 500);
         }
     }
 
@@ -282,32 +287,19 @@ public class UsersController : ControllerBase
         {
             var user = (await _userService.GetAllAsync()).FirstOrDefault(u => u.Email == email);
             if (user == null)
-                return Error("USER_NOT_FOUND", "User not found", 404);
+                return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
             if (user.EmailVerifiedAt != null)
-                return Error("EMAIL_ALREADY_VERIFIED", "Email already verified", 400);
+                return ApiErrorHelper.Error(
+                    "EMAIL_ALREADY_VERIFIED",
+                    "Email already verified",
+                    400
+                );
             await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
             return Ok(new { message = "Verification email resent successfully." });
         }
         catch (Exception ex)
         {
-            return Error("RESEND_VERIFICATION_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("RESEND_VERIFICATION_ERROR", ex.Message, 500);
         }
-    }
-
-    public class ErrorResponse
-    {
-        public string Code { get; set; }
-        public string Message { get; set; }
-
-        public ErrorResponse(string code, string message)
-        {
-            Code = code;
-            Message = message;
-        }
-    }
-
-    private IActionResult Error(string code, string message, int statusCode = 400)
-    {
-        return StatusCode(statusCode, new { error = new ErrorResponse(code, message) });
     }
 }
