@@ -16,6 +16,7 @@ public class UsersController : ControllerBase
     private readonly IRecaptchaService _recaptchaService;
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
 
     public UsersController(
         IUserService userService,
@@ -23,7 +24,8 @@ public class UsersController : ControllerBase
         IRefreshTokenService refreshTokenService,
         IRecaptchaService recaptchaService,
         IEmailVerificationService emailVerificationService,
-        IEmailService emailService
+        IEmailService emailService,
+        IConfiguration configuration
     )
     {
         _userService = userService;
@@ -32,6 +34,7 @@ public class UsersController : ControllerBase
         _recaptchaService = recaptchaService;
         _emailVerificationService = emailVerificationService;
         _emailService = emailService;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -160,12 +163,8 @@ public class UsersController : ControllerBase
 
             if (user.EmailVerifiedAt == null)
             {
-                await SendVerificationEmailAsync(user.Id, user.Email);
-                return Error(
-                    "EMAIL_NOT_VERIFIED",
-                    "Email not verified. A new verification email has been sent.",
-                    401
-                );
+                await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
+                return Error("EMAIL_NOT_VERIFIED", "Email not verified.", 401);
             }
 
             var accessToken = _jwtService.GenerateAccessToken(user);
@@ -234,7 +233,7 @@ public class UsersController : ControllerBase
         try
         {
             var user = await _userService.AddAsync(dto);
-            await SendVerificationEmailAsync(user.Id, user.Email);
+            await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
             return Ok(
                 new
                 {
@@ -255,16 +254,43 @@ public class UsersController : ControllerBase
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
     {
+        string frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "https://localhost:3000";
+        string verifyResultPath = "/verify-result";
+        string frontendUrl = frontendBaseUrl.TrimEnd('/') + verifyResultPath;
         try
         {
-            var result = await _emailVerificationService.VerifyTokenAsync(token);
-            if (!result)
-                return Error("INVALID_OR_EXPIRED_TOKEN", "Invalid or expired token", 400);
-            return Ok(new { message = "Email verified successfully." });
+            var decodedToken = Uri.UnescapeDataString(token.Replace(" ", "+"));
+            var result = await _emailVerificationService.VerifyTokenAsync(decodedToken);
+            var status = result ? "success" : "error";
+            var message = result ? "Email verified successfully." : "Invalid or expired token.";
+            var redirectUrl =
+                $"{frontendUrl}?status={status}&message={Uri.EscapeDataString(message)}";
+            return Redirect(redirectUrl);
         }
         catch (Exception ex)
         {
-            return Error("VERIFY_EMAIL_ERROR", ex.Message, 500);
+            var redirectUrl =
+                $"{frontendUrl}?status=error&message={Uri.EscapeDataString(ex.Message)}";
+            return Redirect(redirectUrl);
+        }
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] string email)
+    {
+        try
+        {
+            var user = (await _userService.GetAllAsync()).FirstOrDefault(u => u.Email == email);
+            if (user == null)
+                return Error("USER_NOT_FOUND", "User not found", 404);
+            if (user.EmailVerifiedAt != null)
+                return Error("EMAIL_ALREADY_VERIFIED", "Email already verified", 400);
+            await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
+            return Ok(new { message = "Verification email resent successfully." });
+        }
+        catch (Exception ex)
+        {
+            return Error("RESEND_VERIFICATION_ERROR", ex.Message, 500);
         }
     }
 
@@ -283,16 +309,5 @@ public class UsersController : ControllerBase
     private IActionResult Error(string code, string message, int statusCode = 400)
     {
         return StatusCode(statusCode, new { error = new ErrorResponse(code, message) });
-    }
-
-    private async Task SendVerificationEmailAsync(int userId, string email)
-    {
-        var token = await _emailVerificationService.GenerateAndSaveTokenAsync(userId);
-        var verifyUrl = $"https://localhost:7106/api/users/verify-email?token={token}";
-        await _emailService.SendEmailAsync(
-            email,
-            "Verify your email",
-            $"<a href='{verifyUrl}'>Click here to verify your email</a>"
-        );
     }
 }
