@@ -22,4 +22,7 @@ public class User : BaseEntity
     public ICollection<Lab> CreatedLabs { get; set; } = new List<Lab>();
     public ICollection<UserProgress> Progresses { get; set; } = new List<UserProgress>();
     public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();
+    public ICollection<Message> Messages { get; set; } = new List<Message>();
+    public ICollection<ChatRoomUser> ChatRooms { get; set; } = new List<ChatRoomUser>();
+    public ICollection<Resource> Resources { get; set; } = new List<Resource>();
 }
