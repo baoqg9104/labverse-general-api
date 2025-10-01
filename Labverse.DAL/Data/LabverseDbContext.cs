@@ -46,8 +46,8 @@ public class LabverseDbContext : DbContext
             .WithMany()
             .HasForeignKey(up => up.LabId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<ChatRoomUser>()
+            
+             modelBuilder.Entity<ChatRoomUser>()
            .HasKey(cru => new { cru.Id, cru.UserId });
 
         modelBuilder.Entity<ChatRoomUser>()
@@ -61,5 +61,10 @@ public class LabverseDbContext : DbContext
             .WithMany(u => u.ChatRooms)
             .HasForeignKey(cru => cru.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+            
+        modelBuilder.Entity<Lab>()
+            .HasIndex(l => l.Slug)
+            .IsUnique();
+
     }
 }

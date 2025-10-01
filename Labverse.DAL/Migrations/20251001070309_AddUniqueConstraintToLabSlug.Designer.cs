@@ -4,6 +4,7 @@ using Labverse.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Labverse.DAL.Migrations
 {
     [DbContext(typeof(LabverseDbContext))]
-    partial class LabverseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251001070309_AddUniqueConstraintToLabSlug")]
+    partial class AddUniqueConstraintToLabSlug
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,62 +57,6 @@ namespace Labverse.DAL.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Badges");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.ChatRoom", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ChatRooms");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.ChatRoomUser", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ChatRoomUsers");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.EmailVerificationToken", b =>
@@ -233,45 +180,6 @@ namespace Labverse.DAL.Migrations
                     b.ToTable("LabCategories");
                 });
 
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.Message", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChatRoomId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("SentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChatRoomId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Messages");
-                });
-
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -307,44 +215,6 @@ namespace Labverse.DAL.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.Resource", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UploadedById")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UploadedById");
-
-                    b.ToTable("Resources");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.Subscription", b =>
@@ -547,25 +417,6 @@ namespace Labverse.DAL.Migrations
                     b.ToTable("UserSubscriptions");
                 });
 
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.ChatRoomUser", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.ChatRoom", "ChatRoom")
-                        .WithMany("ChatRoomUsers")
-                        .HasForeignKey("Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
-                        .WithMany("ChatRooms")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ChatRoom");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.EmailVerificationToken", b =>
                 {
                     b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
@@ -596,25 +447,6 @@ namespace Labverse.DAL.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.Message", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.ChatRoom", "ChatRoom")
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatRoomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
-                        .WithMany("Messages")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatRoom");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.RefreshToken", b =>
                 {
                     b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
@@ -624,17 +456,6 @@ namespace Labverse.DAL.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.Resource", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "UploadedBy")
-                        .WithMany("Resources")
-                        .HasForeignKey("UploadedById")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UploadedBy");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.UserBadge", b =>
@@ -699,13 +520,6 @@ namespace Labverse.DAL.Migrations
                     b.Navigation("UserBadges");
                 });
 
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.ChatRoom", b =>
-                {
-                    b.Navigation("ChatRoomUsers");
-
-                    b.Navigation("Messages");
-                });
-
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabCategory", b =>
                 {
                     b.Navigation("Labs");
@@ -718,15 +532,9 @@ namespace Labverse.DAL.Migrations
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.User", b =>
                 {
-                    b.Navigation("ChatRooms");
-
                     b.Navigation("CreatedLabs");
 
-                    b.Navigation("Messages");
-
                     b.Navigation("Progresses");
-
-                    b.Navigation("Resources");
 
                     b.Navigation("UserBadges");
 

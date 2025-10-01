@@ -61,4 +61,15 @@ public class LabsController : ControllerBase
         await _labService.DeleteAsync(id);
         return NoContent();
     }
+
+    [HttpGet("slug/{slug}")]
+    public async Task<IActionResult> GetLabBySlug(string slug)
+    {
+        var lab = await _labService.GetBySlugAsync(slug);
+
+        if (lab == null)
+            return NotFound();
+
+        return Ok(lab);
+    }
 }

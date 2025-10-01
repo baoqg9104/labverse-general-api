@@ -3,8 +3,8 @@
 public enum UserRole
 {
     User,
-    Admin,
-    Author
+    Author,
+    Admin
 }
 
 public class User : BaseEntity
@@ -17,7 +17,8 @@ public class User : BaseEntity
     public UserRole Role { get; set; } = UserRole.User;
     public DateTime? EmailVerifiedAt { get; set; }
 
-    public ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
+    public ICollection<UserSubscription> UserSubscriptions { get; set; } =
+        new List<UserSubscription>();
     public ICollection<Lab> CreatedLabs { get; set; } = new List<Lab>();
     public ICollection<UserProgress> Progresses { get; set; } = new List<UserProgress>();
     public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();

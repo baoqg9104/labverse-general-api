@@ -16,7 +16,6 @@ public class UsersController : ControllerBase
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly IRecaptchaService _recaptchaService;
     private readonly IEmailVerificationService _emailVerificationService;
-    private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
 
     public UsersController(
@@ -25,7 +24,6 @@ public class UsersController : ControllerBase
         IRefreshTokenService refreshTokenService,
         IRecaptchaService recaptchaService,
         IEmailVerificationService emailVerificationService,
-        IEmailService emailService,
         IConfiguration configuration
     )
     {
@@ -34,7 +32,6 @@ public class UsersController : ControllerBase
         _refreshTokenService = refreshTokenService;
         _recaptchaService = recaptchaService;
         _emailVerificationService = emailVerificationService;
-        _emailService = emailService;
         _configuration = configuration;
     }
 
@@ -99,6 +96,20 @@ public class UsersController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+                return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
+
+            if (!int.TryParse(userId, out var userIdInt))
+                return ApiErrorHelper.Error("UNAUTHORIZED", "Invalid user id", 401);
+
+            if (userIdInt != id)
+                return ApiErrorHelper.Error(
+                    "FORBIDDEN",
+                    "You can only update your own profile",
+                    403
+                );
+
             await _userService.UpdateAsync(id, dto);
             return NoContent();
         }

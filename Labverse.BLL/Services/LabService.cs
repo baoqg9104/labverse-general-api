@@ -2,6 +2,7 @@
 using Labverse.BLL.Interfaces;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 
 namespace Labverse.BLL.Services;
 
@@ -16,14 +17,27 @@ public class LabService : ILabService
 
     public async Task<LabDto> AddAsync(int authorId, CreateLabDto dto)
     {
-        var lab = await _unitOfWork.Labs.AddAsync(new Lab
-        {
-            Title = dto.Title,
-            Description = dto.Description,
-            DifficultyLevel = dto.DifficultyLevel,
-            AuthorId = authorId,
-            CategoryId = dto.CategoryId
-        });
+        // Check for duplicate slug
+        var existingLab = await _unitOfWork
+            .Labs.Query()
+            .FirstOrDefaultAsync(l => l.Slug == dto.Slug);
+
+        if (existingLab != null)
+            throw new InvalidOperationException("Slug already exists");
+
+        var lab = await _unitOfWork.Labs.AddAsync(
+            new Lab
+            {
+                Title = dto.Title,
+                Slug = dto.Slug,
+                MdPath = dto.MdPath,
+                MdPublicUrl = dto.MdPublicUrl,
+                Description = dto.Description,
+                DifficultyLevel = dto.DifficultyLevel,
+                AuthorId = authorId,
+                CategoryId = dto.CategoryId,
+            }
+        );
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -33,7 +47,8 @@ public class LabService : ILabService
     public async Task DeleteAsync(int id)
     {
         var lab = await _unitOfWork.Labs.GetByIdAsync(id);
-        if (lab == null) throw new KeyNotFoundException("Lab not found");
+        if (lab == null)
+            throw new KeyNotFoundException("Lab not found");
         _unitOfWork.Labs.Remove(lab);
         await _unitOfWork.SaveChangesAsync();
     }
@@ -50,11 +65,31 @@ public class LabService : ILabService
         return lab == null ? null : MapToDto(lab);
     }
 
+    public async Task<LabDto?> GetBySlugAsync(string slug)
+    {
+        var lab = await _unitOfWork.Labs.Query().FirstOrDefaultAsync(l => l.Slug == slug);
+
+        return lab == null ? null : MapToDto(lab);
+    }
+
     public async Task UpdateAsync(int id, UpdateLabDto dto)
     {
         var lab = await _unitOfWork.Labs.GetByIdAsync(id);
-        if (lab == null) throw new KeyNotFoundException("Lab not found");
+        if (lab == null)
+            throw new KeyNotFoundException("Lab not found");
+
+        // Check for duplicate slug (except for current lab)
+        var duplicateLab = await _unitOfWork
+            .Labs.Query()
+            .FirstOrDefaultAsync(l => l.Slug == dto.Slug && l.Id != id);
+
+        if (duplicateLab != null)
+            throw new InvalidOperationException("Slug already exists");
+
         lab.Title = dto.Title;
+        lab.Slug = dto.Slug;
+        lab.MdPath = dto.MdPath;
+        lab.MdPublicUrl = dto.MdPublicUrl;
         lab.Description = dto.Description;
         lab.DifficultyLevel = dto.DifficultyLevel;
         lab.CategoryId = dto.CategoryId;
@@ -70,13 +105,16 @@ public class LabService : ILabService
         {
             Id = lab.Id,
             Title = lab.Title,
+            Slug = lab.Slug,
+            MdPath = lab.MdPath,
+            MdPublicUrl = lab.MdPublicUrl,
             Description = lab.Description,
             DifficultyLevel = lab.DifficultyLevel,
             AuthorId = lab.AuthorId,
             CategoryId = lab.CategoryId,
             CreatedAt = lab.CreatedAt,
             UpdatedAt = lab.UpdatedAt,
-            IsActive = lab.IsActive
+            IsActive = lab.IsActive,
         };
     }
 }
