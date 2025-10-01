@@ -5,6 +5,7 @@ namespace Labverse.BLL.Interfaces;
 public interface ILabService
 {
     Task<LabDto?> GetByIdAsync(int id);
+    Task<LabDto?> GetBySlugAsync(string slug);
     Task<IEnumerable<LabDto>> GetAllAsync();
     Task<LabDto> AddAsync(int authorId, CreateLabDto dto);
     Task UpdateAsync(int id, UpdateLabDto dto);

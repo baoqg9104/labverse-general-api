@@ -10,10 +10,10 @@ public class UpdateUserDto
         @"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*(),.?""{}|<>]).+$",
         ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character."
     )]
-    public string Password { get; set; }
+    public string? Password { get; set; }
 
     [Required(ErrorMessage = "Username is required")]
-    public string Username { get; set; }
+    public string? Username { get; set; }
 
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }

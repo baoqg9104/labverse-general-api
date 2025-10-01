@@ -39,5 +39,9 @@ public class LabverseDbContext : DbContext
             .WithMany()
             .HasForeignKey(up => up.LabId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Lab>()
+        .HasIndex(l => l.Slug)
+        .IsUnique();
     }
 }
