@@ -9,12 +9,10 @@ namespace Labverse.BLL.Services;
 public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IUserSubscriptionService _userSubscriptionService;
 
-    public UserService(IUnitOfWork unitOfWork, IUserSubscriptionService userSubscriptionService)
+    public UserService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-        _userSubscriptionService = userSubscriptionService;
     }
 
     public async Task<UserDto> AddAsync(CreateUserDto dto)
@@ -76,19 +74,6 @@ public class UserService : IUserService
 
     public async Task<UserDto?> GetByIdAsync(int id)
     {
-        //var user = await _unitOfWork.Users.GetByIdAsync(id);
-
-        //string subscriptionName = "Free";
-        //if (user != null)
-        //{
-        //    var userScriptionActive = await _userSubscriptionService.GetUserSubscriptionActiveAsync(user.Id);
-
-        //    if (userScriptionActive != null)
-        //    {
-        //        subscriptionName = "Premium";
-        //    }
-        //}
-
         var user = await _unitOfWork
             .Users.Query()
             .Include(u => u.UserSubscriptions)
@@ -109,9 +94,15 @@ public class UserService : IUserService
             user.PasswordHash = passwordHash;
         }
 
-        user.Username = dto.Username;
-        user.AvatarUrl = dto.AvatarUrl;
-        user.Bio = dto.Bio;
+        if (!string.IsNullOrWhiteSpace(dto.Username))
+            user.Username = dto.Username;
+
+        if (!string.IsNullOrWhiteSpace(dto.AvatarUrl))
+            user.AvatarUrl = dto.AvatarUrl;
+
+        if (!string.IsNullOrWhiteSpace(dto.Bio))
+            user.Bio = dto.Bio;
+
         user.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Users.Update(user);
