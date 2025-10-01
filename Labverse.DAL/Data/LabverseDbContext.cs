@@ -20,11 +20,18 @@ public class LabverseDbContext : DbContext
     public DbSet<UserProgress> UserProgresses { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
+    public DbSet<ChatRoom> ChatRooms { get; set; }
+    public DbSet<Message> Messages { get; set; }
+    public DbSet<ChatRoomUser> ChatRoomUsers { get; set; }
+    public DbSet<Resource> Resources { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>().HasQueryFilter(u => u.IsActive);
         modelBuilder.Entity<Lab>().HasQueryFilter(u => u.IsActive);
+        modelBuilder.Entity<ChatRoom>().HasQueryFilter(u => u.IsActive);
+        modelBuilder.Entity<Message>().HasQueryFilter(u => u.IsActive);
+        modelBuilder.Entity<Resource>().HasQueryFilter(u => u.IsActive);
 
         base.OnModelCreating(modelBuilder);
 
@@ -38,6 +45,21 @@ public class LabverseDbContext : DbContext
             .HasOne(up => up.Lab)
             .WithMany()
             .HasForeignKey(up => up.LabId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatRoomUser>()
+           .HasKey(cru => new { cru.Id, cru.UserId });
+
+        modelBuilder.Entity<ChatRoomUser>()
+            .HasOne(cru => cru.ChatRoom)
+            .WithMany(cr => cr.ChatRoomUsers)
+            .HasForeignKey(cru => cru.Id)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatRoomUser>()
+            .HasOne(cru => cru.User)
+            .WithMany(u => u.ChatRooms)
+            .HasForeignKey(cru => cru.UserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
