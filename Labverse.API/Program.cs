@@ -115,6 +115,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+builder.Services.AddScoped<ILabCategoryService, LabCategoryService>();
 
 // Register Recaptcha Service with HttpClient
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();

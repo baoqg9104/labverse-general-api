@@ -59,6 +59,18 @@ public class LabService : ILabService
         return labs.Select(MapToDto);
     }
 
+    public async Task<IEnumerable<LabDto>> GetPreviewLabsAsync(int count = 3)
+    {
+        var labs = await _unitOfWork
+            .Labs.Query()
+            .Where(l => l.DifficultyLevel == LabDifficulty.Basic)
+            .OrderBy(l => l.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+
+        return labs.Select(MapToDto);
+    }
+
     public async Task<LabDto?> GetByIdAsync(int id)
     {
         var lab = await _unitOfWork.Labs.GetByIdAsync(id);
