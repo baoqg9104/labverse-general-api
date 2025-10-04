@@ -8,7 +8,6 @@ namespace Labverse.API.Controllers;
 
 [Route("api/labs")]
 [ApiController]
-[Authorize]
 public class LabsController : ControllerBase
 {
     private readonly ILabService _labService;
@@ -19,13 +18,22 @@ public class LabsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize]
     public async Task<IActionResult> GetLabs()
     {
         var labs = await _labService.GetAllAsync();
         return Ok(labs);
     }
 
+    [HttpGet("preview")]
+    public async Task<IActionResult> GetPreviewLabs()
+    {
+        var labs = await _labService.GetPreviewLabsAsync();
+        return Ok(labs);
+    }
+
     [HttpGet("{id}")]
+    [Authorize]
     public async Task<IActionResult> GetLab(int id)
     {
         var lab = await _labService.GetByIdAsync(id);
@@ -35,6 +43,7 @@ public class LabsController : ControllerBase
     }
 
     [HttpPatch("{id}")]
+    [Authorize]
     public async Task<IActionResult> UpdateLab(int id, [FromBody] UpdateLabDto dto)
     {
         await _labService.UpdateAsync(id, dto);
@@ -42,6 +51,7 @@ public class LabsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> CreateLab([FromBody] CreateLabDto dto)
     {
         var authorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -56,6 +66,7 @@ public class LabsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize]
     public async Task<IActionResult> DeleteLab(int id)
     {
         await _labService.DeleteAsync(id);
@@ -63,6 +74,7 @@ public class LabsController : ControllerBase
     }
 
     [HttpGet("slug/{slug}")]
+    [Authorize]
     public async Task<IActionResult> GetLabBySlug(string slug)
     {
         var lab = await _labService.GetBySlugAsync(slug);
