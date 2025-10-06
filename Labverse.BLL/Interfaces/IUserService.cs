@@ -9,5 +9,6 @@ public interface IUserService
     Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false);
     Task<UserDto> AddAsync(CreateUserDto dto);
     Task UpdateAsync(int id, UpdateUserDto dto);
+    Task ChangePasswordAsync(int id, ChangePasswordUserDto dto);
     Task DeleteAsync(int id);
 }
