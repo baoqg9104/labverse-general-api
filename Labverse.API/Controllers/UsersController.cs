@@ -123,6 +123,38 @@ public class UsersController : ControllerBase
         }
     }
 
+    [HttpPatch("me/password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordUserDto dto)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId == null)
+                return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
+
+            if (!int.TryParse(userId, out var userIdInt))
+                return ApiErrorHelper.Error("UNAUTHORIZED", "Invalid user id", 401);
+
+            await _userService.ChangePasswordAsync(userIdInt, dto);
+
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return ApiErrorHelper.Error("INVALID_OLD_PASSWORD", ex.Message, 400);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("CHANGE_PASSWORD_ERROR", ex.Message, 500);
+        }
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)

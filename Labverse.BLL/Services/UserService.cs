@@ -88,12 +88,6 @@ public class UserService : IUserService
         if (user == null)
             throw new KeyNotFoundException("User not found");
 
-        if (!string.IsNullOrWhiteSpace(dto.Password))
-        {
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-            user.PasswordHash = passwordHash;
-        }
-
         if (!string.IsNullOrWhiteSpace(dto.Username))
             user.Username = dto.Username;
 
@@ -105,6 +99,23 @@ public class UserService : IUserService
 
         user.UpdatedAt = DateTime.UtcNow;
 
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task ChangePasswordAsync(int id, ChangePasswordUserDto dto)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id);
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
+
+        if (!BCrypt.Net.BCrypt.Verify(dto.OldPassword, user.PasswordHash))
+            throw new UnauthorizedAccessException("Invalid old password");
+
+        if (dto.OldPassword.Equals(dto.NewPassword))
+            throw new InvalidOperationException("New password must be different from old password");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync();
     }
