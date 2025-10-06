@@ -270,7 +270,7 @@ public class UsersController : ControllerBase
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
     {
-        string frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "https://localhost:3000";
+        string frontendBaseUrl = _configuration["Frontend:BaseUrl"] ?? "https://localhost:5173";
         string verifyResultPath = "/verify-result";
         string frontendUrl = frontendBaseUrl.TrimEnd('/') + verifyResultPath;
         try
