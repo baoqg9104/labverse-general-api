@@ -15,9 +15,19 @@ public class UserSubscriptionService : IUserSubscriptionService
         _unitOfWork = unitOfWork;
     }
 
-    public Task CreateUserSubscriptionAsync(int userId, int subscriptionId)
+    public async Task CreateUserSubscriptionAsync(int userId, int subscriptionId)
     {
-        throw new NotImplementedException();
+        var now = DateTime.UtcNow;
+        var end = now.AddMonths(1);
+        var userSub = new UserSubscription
+        {
+            UserId = userId,
+            SubscriptionId = subscriptionId,
+            StartDate = now,
+            EndDate = end,
+        };
+        await _unitOfWork.UserSubscriptions.AddAsync(userSub);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     public Task ExtendUserSubscriptionAsync(int userId, int subscriptionId)

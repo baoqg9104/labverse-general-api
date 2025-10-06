@@ -9,6 +9,7 @@ using Labverse.DAL.UnitOfWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Net.payOS;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -116,6 +117,7 @@ builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 builder.Services.AddScoped<ILabCategoryService, LabCategoryService>();
+builder.Services.AddScoped<IPayOSService, PayOSService>();
 
 // Register Recaptcha Service with HttpClient
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -141,6 +143,15 @@ var recaptchaSettings =
 var recaptchaSecretKey =
     recaptchaSettings.SecretKey
     ?? throw new InvalidOperationException("Recaptcha secret key is missing.");
+
+// Configure PayOS
+PayOS payOS = new PayOS(
+    builder.Configuration["PAYOS:CLIENT_ID"] ?? throw new Exception("Cannot find environment"),
+    builder.Configuration["PAYOS:API_KEY"] ?? throw new Exception("Cannot find environment"),
+    builder.Configuration["PAYOS:CHECKSUM_KEY"] ?? throw new Exception("Cannot find environment")
+);
+
+builder.Services.AddSingleton(payOS);
 
 // Configure Authentication and Authorization
 builder
