@@ -15,4 +15,11 @@ public class UserDto
     public bool IsActive { get; set; }
     public DateTime? EmailVerifiedAt { get; set; }
     public string Subscription { get; set; } = "Free"; // Free, Premium
+
+    // Gamification fields
+    public int Points { get; set; } // Acts as XP
+    public int Level { get; set; }
+    public int StreakCurrent { get; set; }
+    public int StreakBest { get; set; }
+    public DateTime? LastActiveAt { get; set; }
 }

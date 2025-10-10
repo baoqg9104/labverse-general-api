@@ -20,11 +20,16 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<UserSubscription> UserSubscriptions { get; }
     public IRepository<UserProgress> UserProgresses { get; }
     public IRepository<Lab> Labs { get; }
-    public IRepository<LabCategory> LabCategories { get; }
     public IRepository<UserBadge> UserBadges { get; }
+    public IRepository<LabQuestion> LabQuestions { get; }
+    public IRepository<UserLabAnswer> UserLabAnswers { get; }
 
-
-    public UnitOfWork(LabverseDbContext context, IUserRepository userRepository, IRefreshTokenRepository refreshTokenRepository, IEmailVerificationTokenRepository emailVerificationTokenRepository)
+    public UnitOfWork(
+        LabverseDbContext context,
+        IUserRepository userRepository,
+        IRefreshTokenRepository refreshTokenRepository,
+        IEmailVerificationTokenRepository emailVerificationTokenRepository
+    )
     {
         _context = context;
 
@@ -37,8 +42,9 @@ public class UnitOfWork : IUnitOfWork
         UserSubscriptions = new Repository<UserSubscription>(_context);
         UserProgresses = new Repository<UserProgress>(_context);
         Labs = new Repository<Lab>(_context);
-        LabCategories = new Repository<LabCategory>(_context);
         UserBadges = new Repository<UserBadge>(_context);
+        LabQuestions = new Repository<LabQuestion>(_context);
+        UserLabAnswers = new Repository<UserLabAnswer>(_context);
     }
 
     public async Task<int> SaveChangesAsync()
@@ -48,7 +54,8 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task BeginTransactionAsync()
     {
-        if (_currentTransaction != null) return;
+        if (_currentTransaction != null)
+            return;
         _currentTransaction = await _context.Database.BeginTransactionAsync();
     }
 

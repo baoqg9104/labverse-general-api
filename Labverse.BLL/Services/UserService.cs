@@ -29,6 +29,8 @@ public class UserService : IUserService
                 Email = dto.Email,
                 PasswordHash = passwordHash,
                 Username = dto.Username,
+                Level = 1,
+                Points = 0,
             }
         );
 
@@ -140,6 +142,11 @@ public class UserService : IUserService
             IsActive = user.IsActive,
             EmailVerifiedAt = user.EmailVerifiedAt,
             Subscription = isUserScriptionActive ? "Premium" : "Free",
+            Points = user.Points,
+            Level = user.Level,
+            StreakCurrent = user.StreakCurrent,
+            StreakBest = user.StreakBest,
+            LastActiveAt = user.LastActiveAt,
         };
     }
 }
