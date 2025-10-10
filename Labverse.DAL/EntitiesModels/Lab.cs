@@ -21,5 +21,6 @@ public class Lab : BaseEntity
     public int CategoryId { get; set; }
 
     public User Author { get; set; } = null!;
-    public LabCategory Category { get; set; } = null!;
+
+    public ICollection<LabQuestion> Questions { get; set; } = new List<LabQuestion>();
 }

@@ -14,8 +14,9 @@ public interface IUnitOfWork : IDisposable
     IRepository<UserSubscription> UserSubscriptions { get; }
     IRepository<UserProgress> UserProgresses { get; }
     IRepository<Lab> Labs { get; }
-    IRepository<LabCategory> LabCategories { get; }
     IRepository<UserBadge> UserBadges { get; }
+    IRepository<LabQuestion> LabQuestions { get; }
+    IRepository<UserLabAnswer> UserLabAnswers { get; }
 
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();

@@ -116,9 +116,11 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
-builder.Services.AddScoped<ILabCategoryService, LabCategoryService>();
 builder.Services.AddScoped<IPayOSService, PayOSService>();
 builder.Services.AddScoped<IUserProgressService, UserProgressService>();
+builder.Services.AddScoped<IQuestionService, QuestionService>();
+builder.Services.AddScoped<IRankingService, RankingService>();
+builder.Services.AddScoped<IRevenueService, RevenueService>();
 
 // Register Recaptcha Service with HttpClient
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -174,6 +176,8 @@ builder
             ValidAudience = jwtSettings.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
             ClockSkew = TimeSpan.Zero,
+            //RoleClaimType = "role",
+            //NameClaimType = JwtRegisteredClaimNames.Sub,
         };
     });
 

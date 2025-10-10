@@ -36,7 +36,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    //[Authorize]
     public async Task<IActionResult> GetUsers([FromQuery] bool? isOnlyVerifiedUser = false)
     {
         try

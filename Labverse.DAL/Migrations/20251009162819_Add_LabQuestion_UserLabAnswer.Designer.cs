@@ -4,6 +4,7 @@ using Labverse.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Labverse.DAL.Migrations
 {
     [DbContext(typeof(LabverseDbContext))]
-    partial class LabverseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251009162819_Add_LabQuestion_UserLabAnswer")]
+    partial class Add_LabQuestion_UserLabAnswer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -429,12 +432,6 @@ namespace Labverse.DAL.Migrations
 
                     b.Property<DateTime?>("LastActiveAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("LastStreakBonusAtDays")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Level")
-                        .HasColumnType("int");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
