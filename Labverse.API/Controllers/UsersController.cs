@@ -37,11 +37,11 @@ public class UsersController : ControllerBase
 
     [HttpGet]
     //[Authorize]
-    public async Task<IActionResult> GetUsers([FromQuery] bool? isOnlyVerifiedUser = false)
+    public async Task<IActionResult> GetUsers([FromQuery] bool? isOnlyVerifiedUser = false, [FromQuery] bool includeInactive = false)
     {
         try
         {
-            var users = await _userService.GetAllAsync(isOnlyVerifiedUser);
+            var users = await _userService.GetAllAsync(isOnlyVerifiedUser, includeInactive);
             return Ok(users);
         }
         catch (Exception ex)
@@ -190,6 +190,25 @@ public class UsersController : ControllerBase
         catch (Exception ex)
         {
             return ApiErrorHelper.Error("DELETE_USER_ERROR", ex.Message, 500);
+        }
+    }
+
+    [HttpPost("{id}/restore")]
+    [Authorize]
+    public async Task<IActionResult> RestoreUser(int id)
+    {
+        try
+        {
+            await _userService.RestoreAsync(id);
+            return Ok(new { message = "User restored" });
+        }
+        catch (KeyNotFoundException)
+        {
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("RESTORE_USER_ERROR", ex.Message, 500);
         }
     }
 

@@ -62,9 +62,31 @@ public class UserService : IUserService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false)
+    public async Task RestoreAsync(int id)
     {
-        var users = await _unitOfWork.Users.Query().Include(u => u.UserSubscriptions).ToListAsync();
+        var user = await _unitOfWork.Users.Query().IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
+        if (user == null)
+            throw new KeyNotFoundException("User not found");
+        if (user.IsActive)
+            return; // already active
+        user.IsActive = true;
+        user.UpdatedAt = DateTime.UtcNow;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false, bool includeInactive = false)
+    {
+        var baseQuery = _unitOfWork.Users.Query().Include(u => u.UserSubscriptions);
+
+        // includeInactive toggles off global IsActive filter
+        if (includeInactive)
+        {
+            // Remove global filter by using IgnoreQueryFilters on DbSet
+            baseQuery = _unitOfWork.Users.Query().IgnoreQueryFilters().Include(u => u.UserSubscriptions);
+        }
+
+        var users = await baseQuery.ToListAsync();
 
         if (isOnlyVerifiedUser == true)
         {
