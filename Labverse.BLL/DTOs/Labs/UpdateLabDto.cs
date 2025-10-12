@@ -10,5 +10,4 @@ public class UpdateLabDto
     public string MdPublicUrl { get; set; } = string.Empty;
     public string Description { get; set; }
     public LabDifficulty DifficultyLevel { get; set; }
-    public int CategoryId { get; set; }
 }

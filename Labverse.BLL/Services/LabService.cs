@@ -35,7 +35,6 @@ public class LabService : ILabService
                 Description = dto.Description,
                 DifficultyLevel = dto.DifficultyLevel,
                 AuthorId = authorId,
-                CategoryId = dto.CategoryId,
             }
         );
 
@@ -104,7 +103,6 @@ public class LabService : ILabService
         lab.MdPublicUrl = dto.MdPublicUrl;
         lab.Description = dto.Description;
         lab.DifficultyLevel = dto.DifficultyLevel;
-        lab.CategoryId = dto.CategoryId;
         lab.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Labs.Update(lab);
@@ -123,7 +121,6 @@ public class LabService : ILabService
             Description = lab.Description,
             DifficultyLevel = lab.DifficultyLevel,
             AuthorId = lab.AuthorId,
-            CategoryId = lab.CategoryId,
             CreatedAt = lab.CreatedAt,
             UpdatedAt = lab.UpdatedAt,
             IsActive = lab.IsActive,
