@@ -33,6 +33,7 @@ public class LabverseDbContext : DbContext
         modelBuilder.Entity<ChatRoom>().HasQueryFilter(u => u.IsActive);
         modelBuilder.Entity<Message>().HasQueryFilter(u => u.IsActive);
         modelBuilder.Entity<Resource>().HasQueryFilter(u => u.IsActive);
+        modelBuilder.Entity<LabQuestion>().HasQueryFilter(u => u.IsActive);
 
         base.OnModelCreating(modelBuilder);
 
