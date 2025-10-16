@@ -9,10 +9,12 @@ namespace Labverse.BLL.Services;
 public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IFirebaseAuthService _firebaseAuthService;
 
-    public UserService(IUnitOfWork unitOfWork)
+    public UserService(IUnitOfWork unitOfWork, IFirebaseAuthService firebaseAuthService)
     {
         _unitOfWork = unitOfWork;
+        _firebaseAuthService = firebaseAuthService;
     }
 
     public async Task<UserDto> AddAsync(CreateUserDto dto)
@@ -52,19 +54,96 @@ public class UserService : IUserService
         return MapToDto(user);
     }
 
+    public async Task<UserDto> AuthenticateWithFirebaseAsync(ExternalAuthRequestDto dto)
+    {
+        var verified = await _firebaseAuthService.VerifyIdTokenAsync(dto.IdToken);
+
+        var uid = verified.Uid;
+        var email = verified.Claims.GetValueOrDefault("email")?.ToString();
+        var name = verified.Claims.GetValueOrDefault("name")?.ToString();
+        var picture = verified.Claims.GetValueOrDefault("picture")?.ToString();
+
+        if (string.IsNullOrWhiteSpace(email))
+            throw new InvalidOperationException("Firebase token missing email");
+
+        var user = await _unitOfWork.Users.GetByEmailAsync(email);
+
+        if (user == null)
+        {
+            user = new User
+            {
+                FirebaseUid = uid,
+                AuthProvider = "google",
+                Email = email!,
+                EmailVerifiedAt = DateTime.UtcNow,
+                Username = string.IsNullOrWhiteSpace(name) ? email! : name!,
+                AvatarUrl = picture,
+                PasswordHash = null!, // no password for Firebase users
+            };
+            user = await _unitOfWork.Users.AddAsync(user);
+        }
+        else
+        {
+            if (user.EmailVerifiedAt == null)
+            {
+                user.EmailVerifiedAt = DateTime.UtcNow;
+            }
+
+            user.FirebaseUid = uid;
+            user.AuthProvider = "google";
+
+            _unitOfWork.Users.Update(user);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToDto(user);
+    }
+
     public async Task DeleteAsync(int id)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         if (user == null)
             throw new KeyNotFoundException("User not found");
-
         _unitOfWork.Users.Remove(user);
         await _unitOfWork.SaveChangesAsync();
     }
 
+    public async Task<(int pointsAwarded, UserDto user, string? message)> ClaimDailyLoginAsync(
+        int userId
+    )
+    {
+        var user =
+            await _unitOfWork.Users.GetByIdAsync(userId)
+            ?? throw new KeyNotFoundException("User not found");
+
+        if (user.EmailVerifiedAt == null)
+        {
+            return (0, MapToDto(user), "Email not verified");
+        }
+
+        var today = DateTime.UtcNow.Date;
+        var last = user.LastActiveAt?.Date;
+        if (last != null && last >= today)
+        {
+            return (0, MapToDto(user), "Already claimed for today");
+        }
+
+        user.Points += Gamification.XpRules.DailyLoginXp;
+        var (_, milestone) = Gamification.StreakHelper.UpdateForActivity(user, DateTime.UtcNow);
+        var totalAwarded = Gamification.XpRules.DailyLoginXp + milestone;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        return (totalAwarded, MapToDto(user), null);
+    }
+
     public async Task RestoreAsync(int id)
     {
-        var user = await _unitOfWork.Users.Query().IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
+        var user = await _unitOfWork
+            .Users.Query()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             throw new KeyNotFoundException("User not found");
         if (user.IsActive)
@@ -75,7 +154,10 @@ public class UserService : IUserService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false, bool includeInactive = false)
+    public async Task<IEnumerable<UserDto>> GetAllAsync(
+        bool? isOnlyVerifiedUser = false,
+        bool includeInactive = false
+    )
     {
         var baseQuery = _unitOfWork.Users.Query().Include(u => u.UserSubscriptions);
 
@@ -83,7 +165,10 @@ public class UserService : IUserService
         if (includeInactive)
         {
             // Remove global filter by using IgnoreQueryFilters on DbSet
-            baseQuery = _unitOfWork.Users.Query().IgnoreQueryFilters().Include(u => u.UserSubscriptions);
+            baseQuery = _unitOfWork
+                .Users.Query()
+                .IgnoreQueryFilters()
+                .Include(u => u.UserSubscriptions);
         }
 
         var users = await baseQuery.ToListAsync();

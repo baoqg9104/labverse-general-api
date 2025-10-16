@@ -6,6 +6,8 @@ public interface IUserService
 {
     Task<UserDto?> GetByIdAsync(int id);
     Task<UserDto?> Authenticate(AuthRequestDto dto);
+    Task<UserDto> AuthenticateWithFirebaseAsync(ExternalAuthRequestDto dto);
+    Task<(int pointsAwarded, UserDto user, string? message)> ClaimDailyLoginAsync(int userId);
     Task<IEnumerable<UserDto>> GetAllAsync(bool? isOnlyVerifiedUser = false, bool includeInactive = false);
     Task<UserDto> AddAsync(CreateUserDto dto);
     Task UpdateAsync(int id, UpdateUserDto dto);
