@@ -1,4 +1,6 @@
 using DotNetEnv;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Labverse.BLL.Interfaces;
 using Labverse.BLL.Services;
 using Labverse.BLL.Settings;
@@ -113,6 +115,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ILabService, LabService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IFirebaseAuthService, FirebaseAuthService>();
 builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
@@ -121,6 +124,12 @@ builder.Services.AddScoped<IUserProgressService, UserProgressService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IRankingService, RankingService>();
 builder.Services.AddScoped<IRevenueService, RevenueService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IVectorService, VectorService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IKnowledgeImportService, KnowledgeImportService>();
+builder.Services.AddHttpClient("supabase");
+builder.Services.AddHttpClient("gemini");
 
 // Register Recaptcha Service with HttpClient
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -146,6 +155,9 @@ var recaptchaSettings =
 var recaptchaSecretKey =
     recaptchaSettings.SecretKey
     ?? throw new InvalidOperationException("Recaptcha secret key is missing.");
+
+// Initialize Firebase (Admin SDK)
+InitializeFirebase(builder.Configuration);
 
 // Configure PayOS
 PayOS payOS = new PayOS(
@@ -202,3 +214,50 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void InitializeFirebase(ConfigurationManager config)
+{
+    try
+    {
+        if (FirebaseApp.DefaultInstance != null)
+            return;
+
+        GoogleCredential credential;
+        // Minimal secrets via env/.env only: client email + private key (+ optional project id / key id)
+        var clientEmail =
+            config["Firebase:ClientEmail"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_CLIENT_EMAIL");
+        var privateKey =
+            config["Firebase:PrivateKey"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_PRIVATE_KEY");
+        var projectId =
+            config["Firebase:ProjectId"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
+        var privateKeyId =
+            config["Firebase:PrivateKeyId"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_PRIVATE_KEY_ID");
+
+        if (string.IsNullOrWhiteSpace(clientEmail) || string.IsNullOrWhiteSpace(privateKey))
+            throw new InvalidOperationException(
+                "Firebase credentials missing: set ClientEmail and PrivateKey in env/config."
+            );
+
+        // Normalize private key newlines if provided as single-line with escaped \n
+        var normalizedKey = privateKey.Replace("\\n", "\n");
+        var initializer = new ServiceAccountCredential.Initializer(clientEmail)
+        {
+            ProjectId = string.IsNullOrWhiteSpace(projectId) ? null : projectId,
+            KeyId = string.IsNullOrWhiteSpace(privateKeyId) ? null : privateKeyId,
+        }.FromPrivateKey(normalizedKey);
+
+        var svcCred = new ServiceAccountCredential(initializer);
+        credential = GoogleCredential.FromServiceAccountCredential(svcCred);
+
+        FirebaseApp.Create(new AppOptions { Credential = credential });
+    }
+    catch
+    {
+        // Do not fallback to default app without credentials to avoid unexpected behavior
+        throw;
+    }
+}
