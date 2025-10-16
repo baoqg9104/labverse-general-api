@@ -23,6 +23,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<UserBadge> UserBadges { get; }
     public IRepository<LabQuestion> LabQuestions { get; }
     public IRepository<UserLabAnswer> UserLabAnswers { get; }
+    public IRepository<Report> Reports { get; }
 
     public UnitOfWork(
         LabverseDbContext context,
@@ -45,6 +46,7 @@ public class UnitOfWork : IUnitOfWork
         UserBadges = new Repository<UserBadge>(_context);
         LabQuestions = new Repository<LabQuestion>(_context);
         UserLabAnswers = new Repository<UserLabAnswer>(_context);
+        Reports = new Repository<Report>(_context);
     }
 
     public async Task<int> SaveChangesAsync()

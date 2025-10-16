@@ -4,18 +4,22 @@ public enum UserRole
 {
     User,
     Author,
-    Admin
+    Admin,
 }
 
 public class User : BaseEntity
 {
     public string Email { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
     public DateTime? EmailVerifiedAt { get; set; }
+
+    // External authentication (Firebase/Google)
+    public string? FirebaseUid { get; set; }
+    public string? AuthProvider { get; set; } // e.g., "google"
 
     // Gamification fields
     public int Points { get; set; } = 0; // Acts as XP storage
@@ -23,6 +27,7 @@ public class User : BaseEntity
     public int StreakCurrent { get; set; } = 0;
     public int StreakBest { get; set; } = 0;
     public DateTime? LastActiveAt { get; set; }
+
     // Track last streak day milestone that granted bonus (e.g., 7, 14, ...)
     public int LastStreakBonusAtDays { get; set; } = 0;
 

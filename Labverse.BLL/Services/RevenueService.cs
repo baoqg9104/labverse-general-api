@@ -59,4 +59,59 @@ public class RevenueService : IRevenueService
             Currency = "VND",
         };
     }
+
+    public async Task<List<DailyRevenuePointDto>> GetRevenueDailyAsync(DateTime? from, DateTime? to)
+    {
+        DateTime? start = from?.ToUniversalTime();
+        DateTime? end = to?.ToUniversalTime();
+        if (start.HasValue && end.HasValue && end < start)
+            (start, end) = (end, start);
+
+        // base: user subscriptions joined with subscription prices
+        var baseQuery =
+            from us in _unitOfWork.UserSubscriptions.Query()
+            join s in _unitOfWork.Subscriptions.Query() on us.SubscriptionId equals s.Id
+            select new { us.StartDate, s.Price };
+
+        if (start.HasValue)
+            baseQuery = baseQuery.Where(x => x.StartDate >= start.Value);
+        if (end.HasValue)
+            baseQuery = baseQuery.Where(x => x.StartDate <= end.Value);
+
+        // group by day (UTC)
+        var grouped = await baseQuery
+            .GroupBy(x => x.StartDate.Date)
+            .Select(g => new DailyRevenuePointDto
+            {
+                Date = g.Key,
+                TotalRevenue = g.Sum(x => x.Price),
+                Transactions = g.Count(),
+            })
+            .OrderBy(p => p.Date)
+            .ToListAsync();
+
+        // fill missing days with zeros if both bounds provided
+        if (start.HasValue && end.HasValue)
+        {
+            var map = grouped.ToDictionary(p => p.Date.Date);
+            var filled = new List<DailyRevenuePointDto>();
+            for (var d = start.Value.Date; d <= end.Value.Date; d = d.AddDays(1))
+            {
+                if (map.TryGetValue(d, out var v))
+                    filled.Add(v);
+                else
+                    filled.Add(
+                        new DailyRevenuePointDto
+                        {
+                            Date = d,
+                            TotalRevenue = 0,
+                            Transactions = 0,
+                        }
+                    );
+            }
+            return filled;
+        }
+
+        return grouped;
+    }
 }

@@ -24,7 +24,8 @@ public class UsersController : ControllerBase
         IRefreshTokenService refreshTokenService,
         IRecaptchaService recaptchaService,
         IEmailVerificationService emailVerificationService,
-        IConfiguration configuration
+        IConfiguration configuration,
+        IFirebaseAuthService firebaseAuthService
     )
     {
         _userService = userService;
@@ -33,20 +34,82 @@ public class UsersController : ControllerBase
         _recaptchaService = recaptchaService;
         _emailVerificationService = emailVerificationService;
         _configuration = configuration;
+        _ = firebaseAuthService; // ensure DI for service availability
     }
 
     [HttpGet]
     //[Authorize]
-    public async Task<IActionResult> GetUsers([FromQuery] bool? isOnlyVerifiedUser = false)
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] bool? isOnlyVerifiedUser = false,
+        [FromQuery] bool includeInactive = false
+    )
     {
         try
         {
-            var users = await _userService.GetAllAsync(isOnlyVerifiedUser);
+            var users = await _userService.GetAllAsync(isOnlyVerifiedUser, includeInactive);
             return Ok(users);
         }
         catch (Exception ex)
         {
             return ApiErrorHelper.Error("GET_USERS_ERROR", ex.Message, 500);
+        }
+    }
+
+    [HttpPost("authenticate/google")]
+    public async Task<IActionResult> AuthenticateWithGoogle([FromBody] ExternalAuthRequestDto dto)
+    {
+        try
+        {
+            var user = await _userService.AuthenticateWithFirebaseAsync(dto);
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAndSaveAsync(user.Id);
+            Response.Cookies.Append(
+                "refreshToken",
+                refreshToken.Token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = refreshToken.Expires,
+                }
+            );
+            var response = new AuthResponseDto { AccessToken = accessToken };
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("AUTHENTICATE_GOOGLE_ERROR", ex.Message, 500);
+        }
+    }
+
+    [HttpPost("points/daily-login")]
+    [Authorize]
+    public async Task<IActionResult> ClaimDailyLogin()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId) || !int.TryParse(userId, out var uid))
+                return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
+
+            var (points, user, message) = await _userService.ClaimDailyLoginAsync(uid);
+            return Ok(
+                new
+                {
+                    pointsAwarded = points,
+                    user,
+                    message,
+                }
+            );
+        }
+        catch (KeyNotFoundException)
+        {
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("CLAIM_DAILY_LOGIN_ERROR", ex.Message, 500);
         }
     }
 
@@ -190,6 +253,25 @@ public class UsersController : ControllerBase
         catch (Exception ex)
         {
             return ApiErrorHelper.Error("DELETE_USER_ERROR", ex.Message, 500);
+        }
+    }
+
+    [HttpPost("{id}/restore")]
+    [Authorize]
+    public async Task<IActionResult> RestoreUser(int id)
+    {
+        try
+        {
+            await _userService.RestoreAsync(id);
+            return Ok(new { message = "User restored" });
+        }
+        catch (KeyNotFoundException)
+        {
+            return ApiErrorHelper.Error("USER_NOT_FOUND", "User not found", 404);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("RESTORE_USER_ERROR", ex.Message, 500);
         }
     }
 

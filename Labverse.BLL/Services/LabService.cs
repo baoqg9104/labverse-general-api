@@ -35,7 +35,6 @@ public class LabService : ILabService
                 Description = dto.Description,
                 DifficultyLevel = dto.DifficultyLevel,
                 AuthorId = authorId,
-                CategoryId = dto.CategoryId,
             }
         );
 
@@ -53,9 +52,14 @@ public class LabService : ILabService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<LabDto>> GetAllAsync()
+    public async Task<IEnumerable<LabDto>> GetAllAsync(bool includeInactive = false)
     {
-        var labs = await _unitOfWork.Labs.GetAllAsync();
+        var query = _unitOfWork.Labs.Query();
+        if (includeInactive)
+        {
+            query = _unitOfWork.Labs.Query().IgnoreQueryFilters();
+        }
+        var labs = await query.ToListAsync();
         return labs.Select(MapToDto);
     }
 
@@ -104,9 +108,21 @@ public class LabService : ILabService
         lab.MdPublicUrl = dto.MdPublicUrl;
         lab.Description = dto.Description;
         lab.DifficultyLevel = dto.DifficultyLevel;
-        lab.CategoryId = dto.CategoryId;
         lab.UpdatedAt = DateTime.UtcNow;
 
+        _unitOfWork.Labs.Update(lab);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task RestoreAsync(int id)
+    {
+        var lab = await _unitOfWork.Labs.Query().IgnoreQueryFilters().FirstOrDefaultAsync(l => l.Id == id);
+        if (lab == null)
+            throw new KeyNotFoundException("Lab not found");
+        if (lab.IsActive)
+            return;
+        lab.IsActive = true;
+        lab.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Labs.Update(lab);
         await _unitOfWork.SaveChangesAsync();
     }
@@ -123,7 +139,6 @@ public class LabService : ILabService
             Description = lab.Description,
             DifficultyLevel = lab.DifficultyLevel,
             AuthorId = lab.AuthorId,
-            CategoryId = lab.CategoryId,
             CreatedAt = lab.CreatedAt,
             UpdatedAt = lab.UpdatedAt,
             IsActive = lab.IsActive,

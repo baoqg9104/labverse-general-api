@@ -18,7 +18,6 @@ public class Lab : BaseEntity
     public string MdPublicUrl { get; set; } = string.Empty;
 
     public int AuthorId { get; set; }
-    public int CategoryId { get; set; }
 
     public User Author { get; set; } = null!;
 
