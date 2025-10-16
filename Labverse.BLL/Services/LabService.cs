@@ -52,9 +52,14 @@ public class LabService : ILabService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<LabDto>> GetAllAsync()
+    public async Task<IEnumerable<LabDto>> GetAllAsync(bool includeInactive = false)
     {
-        var labs = await _unitOfWork.Labs.GetAllAsync();
+        var query = _unitOfWork.Labs.Query();
+        if (includeInactive)
+        {
+            query = _unitOfWork.Labs.Query().IgnoreQueryFilters();
+        }
+        var labs = await query.ToListAsync();
         return labs.Select(MapToDto);
     }
 
@@ -105,6 +110,19 @@ public class LabService : ILabService
         lab.DifficultyLevel = dto.DifficultyLevel;
         lab.UpdatedAt = DateTime.UtcNow;
 
+        _unitOfWork.Labs.Update(lab);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    public async Task RestoreAsync(int id)
+    {
+        var lab = await _unitOfWork.Labs.Query().IgnoreQueryFilters().FirstOrDefaultAsync(l => l.Id == id);
+        if (lab == null)
+            throw new KeyNotFoundException("Lab not found");
+        if (lab.IsActive)
+            return;
+        lab.IsActive = true;
+        lab.UpdatedAt = DateTime.UtcNow;
         _unitOfWork.Labs.Update(lab);
         await _unitOfWork.SaveChangesAsync();
     }
