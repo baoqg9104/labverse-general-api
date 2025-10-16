@@ -25,6 +25,7 @@ public class LabverseDbContext : DbContext
     public DbSet<Resource> Resources { get; set; }
     public DbSet<LabQuestion> LabQuestions { get; set; }
     public DbSet<UserLabAnswer> UserLabAnswers { get; set; }
+    public DbSet<Report> Reports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -92,5 +93,27 @@ public class LabverseDbContext : DbContext
             .WithMany()
             .HasForeignKey(a => a.QuestionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Reports
+        modelBuilder.Entity<Report>()
+            .HasOne(r => r.Reporter)
+            .WithMany()
+            .HasForeignKey(r => r.ReporterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Report>()
+            .HasOne(r => r.AssignedAdmin)
+            .WithMany()
+            .HasForeignKey(r => r.AssignedAdminId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Report>()
+            .HasIndex(r => r.CreatedAt);
+        modelBuilder.Entity<Report>()
+            .HasIndex(r => r.Status);
+        modelBuilder.Entity<Report>()
+            .HasIndex(r => r.Type);
+        modelBuilder.Entity<Report>()
+            .HasIndex(r => r.Severity);
     }
 }
