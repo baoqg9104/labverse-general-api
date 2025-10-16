@@ -16,15 +16,24 @@ public class QuestionService : IQuestionService
         _unitOfWork = unitOfWork;
     }
 
-    private static string BuildCorrectAnswerJson(QuestionType type, string? correctText, string[]? correctOptions, bool? correctBool)
+    private static string BuildCorrectAnswerJson(
+        QuestionType type,
+        string? correctText,
+        string[]? correctOptions,
+        bool? correctBool
+    )
     {
         return type switch
         {
             QuestionType.SingleChoice => JsonSerializer.Serialize(correctText ?? string.Empty),
-            QuestionType.MultipleChoice => JsonSerializer.Serialize(correctOptions ?? Array.Empty<string>()),
+            QuestionType.MultipleChoice => JsonSerializer.Serialize(
+                correctOptions ?? Array.Empty<string>()
+            ),
             QuestionType.TrueFalse => JsonSerializer.Serialize(correctBool ?? false),
-            QuestionType.ShortText => JsonSerializer.Serialize((correctText ?? string.Empty).Trim()),
-            _ => "[]"
+            QuestionType.ShortText => JsonSerializer.Serialize(
+                (correctText ?? string.Empty).Trim()
+            ),
+            _ => "[]",
         };
     }
 
@@ -45,7 +54,12 @@ public class QuestionService : IQuestionService
             QuestionText = dto.QuestionText,
             Type = dto.Type,
             ChoicesJson = BuildChoicesJson(dto.Choices),
-            CorrectAnswerJson = BuildCorrectAnswerJson(dto.Type, dto.CorrectText, dto.CorrectOptions, dto.CorrectBool)
+            CorrectAnswerJson = BuildCorrectAnswerJson(
+                dto.Type,
+                dto.CorrectText,
+                dto.CorrectOptions,
+                dto.CorrectBool
+            ),
         };
         await _unitOfWork.LabQuestions.AddAsync(question);
         await _unitOfWork.SaveChangesAsync();
@@ -55,7 +69,7 @@ public class QuestionService : IQuestionService
             LabId = labId,
             QuestionText = question.QuestionText,
             Type = question.Type,
-            ChoicesJson = question.ChoicesJson
+            ChoicesJson = question.ChoicesJson,
         };
     }
 
@@ -71,7 +85,12 @@ public class QuestionService : IQuestionService
         if (dto.Choices != null)
             q.ChoicesJson = BuildChoicesJson(dto.Choices);
         if (dto.CorrectText != null || dto.CorrectOptions != null || dto.CorrectBool.HasValue)
-            q.CorrectAnswerJson = BuildCorrectAnswerJson(q.Type, dto.CorrectText, dto.CorrectOptions, dto.CorrectBool);
+            q.CorrectAnswerJson = BuildCorrectAnswerJson(
+                q.Type,
+                dto.CorrectText,
+                dto.CorrectOptions,
+                dto.CorrectBool
+            );
         _unitOfWork.LabQuestions.Update(q);
         await _unitOfWork.SaveChangesAsync();
         return new LabQuestionDto
@@ -159,20 +178,25 @@ public class QuestionService : IQuestionService
         // XP: +10 when newly correct
         if (isCorrect && !wasCorrectBefore)
         {
-            user.Points += 10; // Points used as XP storage
-            awarded += 10;
+            user.Points += Labverse.BLL.Gamification.XpRules.NewCorrectAnswerXp; // Points used as XP storage
+            awarded += Labverse.BLL.Gamification.XpRules.NewCorrectAnswerXp;
         }
 
         // Track streak (daily activity when submitting an answer)
-        bool streakIncreased = UpdateStreak(user);
+        var (streakIncreased, milestoneFromStreak) = Gamification.StreakHelper.UpdateForActivity(user, DateTime.UtcNow);
+        awarded += milestoneFromStreak;
 
         // Streak milestone: +100 XP at 7-day streak (and multiples)
-        if (streakIncreased && user.StreakCurrent >= 7 && user.StreakCurrent % 7 == 0)
+        if (
+            streakIncreased
+            && user.StreakCurrent >= Labverse.BLL.Gamification.XpRules.StreakMilestoneDays
+            && user.StreakCurrent % Labverse.BLL.Gamification.XpRules.StreakMilestoneDays == 0
+        )
         {
             if (user.LastStreakBonusAtDays < user.StreakCurrent)
             {
-                user.Points += 100;
-                awarded += 100;
+                user.Points += Labverse.BLL.Gamification.XpRules.StreakMilestoneXp;
+                awarded += Labverse.BLL.Gamification.XpRules.StreakMilestoneXp;
                 user.LastStreakBonusAtDays = user.StreakCurrent;
             }
         }
@@ -208,8 +232,8 @@ public class QuestionService : IQuestionService
 
                 if (progress == null || progress.Status != ProgressStatus.Completed)
                 {
-                    user.Points += 50; // +50 XP for completing a lab
-                    awarded += 50;
+                    user.Points += Labverse.BLL.Gamification.XpRules.LabCompletionXp; // +50 XP for completing a lab
+                    awarded += Labverse.BLL.Gamification.XpRules.LabCompletionXp;
 
                     // mark progress completed
                     if (progress == null)
@@ -294,47 +318,18 @@ public class QuestionService : IQuestionService
         }
     }
 
-    private static bool UpdateStreak(User user)
-    {
-        var today = DateTime.UtcNow.Date;
-        var increased = false;
-        if (user.LastActiveAt == null)
-        {
-            user.StreakCurrent = 1;
-            increased = true;
-        }
-        else
-        {
-            var last = user.LastActiveAt.Value.Date;
-            if (last == today)
-            {
-                // same day, do not change
-            }
-            else if (last == today.AddDays(-1))
-            {
-                user.StreakCurrent += 1;
-                increased = true;
-            }
-            else
-            {
-                user.StreakCurrent = 1;
-                increased = true;
-            }
-        }
-        user.LastActiveAt = DateTime.UtcNow;
-        if (user.StreakCurrent > user.StreakBest)
-            user.StreakBest = user.StreakCurrent;
-        return increased;
-    }
+    // Removed per shared StreakHelper
 
-    // Increment user level based on XP thresholds and award badges at milestones
+    // Increment user level based on increasing XP thresholds and award badges at milestones
     private void ApplyLevelUps(User user)
     {
-        // Example thresholds: level n requires XP >= 100 * n * (n-1) / 2 (increasing pace)
-        // Simpler: level up every 100 XP
-        var thresholds = new Func<int, int>(lvl => lvl * 100);
+        // Total XP required to reach next level grows with current level (triangular progression)
+        // requiredTotalXp(level L -> L+1) = BaseXp * (L * (L + 1) / 2)
+        const int BaseXp = 100; // base scaling; adjust if needed
+        int RequiredTotalXp(int lvl) => Labverse.BLL.Gamification.XpRules.RequiredTotalXp(lvl);
+
         var leveledUp = false;
-        while (user.Points >= thresholds(user.Level))
+        while (user.Points >= RequiredTotalXp(user.Level))
         {
             user.Level += 1;
             leveledUp = true;
@@ -350,7 +345,8 @@ public class QuestionService : IQuestionService
     {
         // Example milestones
         var milestones = new HashSet<int> { 3, 5, 10, 20 };
-        if (!milestones.Contains(user.Level)) return;
+        if (!milestones.Contains(user.Level))
+            return;
 
         // Find a badge by name pattern or create if needed
         var badgeName = $"Level {user.Level}";
@@ -361,21 +357,23 @@ public class QuestionService : IQuestionService
             {
                 Name = badgeName,
                 Description = $"Reached level {user.Level}",
-                IconUrl = string.Empty
+                IconUrl = string.Empty,
             };
             // Persist badge
             _unitOfWork.Badges.AddAsync(badge).GetAwaiter().GetResult();
         }
 
         // Check if user already has it
-        var hasIt = _unitOfWork.UserBadges.Query().Any(ub => ub.UserId == user.Id && ub.BadgeId == badge.Id);
+        var hasIt = _unitOfWork
+            .UserBadges.Query()
+            .Any(ub => ub.UserId == user.Id && ub.BadgeId == badge.Id);
         if (!hasIt)
         {
             var userBadge = new DAL.EntitiesModels.UserBadge
             {
                 UserId = user.Id,
                 BadgeId = badge.Id,
-                DateAwarded = DateTime.UtcNow
+                DateAwarded = DateTime.UtcNow,
             };
             _unitOfWork.UserBadges.AddAsync(userBadge).GetAwaiter().GetResult();
         }
