@@ -19,9 +19,9 @@ public class LabsController : ControllerBase
 
     [HttpGet]
     [Authorize]
-    public async Task<IActionResult> GetLabs()
+    public async Task<IActionResult> GetLabs([FromQuery] bool includeInactive = false)
     {
-        var labs = await _labService.GetAllAsync();
+        var labs = await _labService.GetAllAsync(includeInactive);
         return Ok(labs);
     }
 
@@ -71,6 +71,25 @@ public class LabsController : ControllerBase
     {
         await _labService.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpPost("{id}/restore")]
+    [Authorize]
+    public async Task<IActionResult> RestoreLab(int id)
+    {
+        try
+        {
+            await _labService.RestoreAsync(id);
+            return Ok(new { message = "Lab restored" });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message, statusCode: 500);
+        }
     }
 
     [HttpGet("slug/{slug}")]
