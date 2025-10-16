@@ -21,17 +21,17 @@ public class RankingService : IRankingService
         {
             case RankingCriteria.Streak:
                 q = q.OrderByDescending(u => u.StreakCurrent)
-                     .ThenByDescending(u => u.StreakBest)
-                     .ThenByDescending(u => u.Level)
-                     .ThenByDescending(u => u.Points)
-                     .ThenBy(u => u.Id);
+                    .ThenByDescending(u => u.StreakBest)
+                    .ThenByDescending(u => u.Level)
+                    .ThenByDescending(u => u.Points)
+                    .ThenBy(u => u.Id);
                 break;
             case RankingCriteria.Points:
             default:
                 q = q.OrderByDescending(u => u.Level)
-                     .ThenByDescending(u => u.Points)
-                     .ThenByDescending(u => u.StreakBest)
-                     .ThenBy(u => u.Id);
+                    .ThenByDescending(u => u.Points)
+                    .ThenByDescending(u => u.StreakBest)
+                    .ThenBy(u => u.Id);
                 break;
         }
 
@@ -43,7 +43,7 @@ public class RankingService : IRankingService
             Points = u.Points,
             Level = u.Level,
             StreakCurrent = u.StreakCurrent,
-            StreakBest = u.StreakBest
+            StreakBest = u.StreakBest,
         });
     }
 }
