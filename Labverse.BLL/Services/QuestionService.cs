@@ -178,25 +178,28 @@ public class QuestionService : IQuestionService
         // XP: +10 when newly correct
         if (isCorrect && !wasCorrectBefore)
         {
-            user.Points += Labverse.BLL.Gamification.XpRules.NewCorrectAnswerXp; // Points used as XP storage
-            awarded += Labverse.BLL.Gamification.XpRules.NewCorrectAnswerXp;
+            user.Points += Gamification.XpRules.NewCorrectAnswerXp; // Points used as XP storage
+            awarded += Gamification.XpRules.NewCorrectAnswerXp;
         }
 
         // Track streak (daily activity when submitting an answer)
-        var (streakIncreased, milestoneFromStreak) = Gamification.StreakHelper.UpdateForActivity(user, DateTime.UtcNow);
+        var (streakIncreased, milestoneFromStreak) = Gamification.StreakHelper.UpdateForActivity(
+            user,
+            DateTime.UtcNow
+        );
         awarded += milestoneFromStreak;
 
         // Streak milestone: +100 XP at 7-day streak (and multiples)
         if (
             streakIncreased
-            && user.StreakCurrent >= Labverse.BLL.Gamification.XpRules.StreakMilestoneDays
-            && user.StreakCurrent % Labverse.BLL.Gamification.XpRules.StreakMilestoneDays == 0
+            && user.StreakCurrent >= Gamification.XpRules.StreakMilestoneDays
+            && user.StreakCurrent % Gamification.XpRules.StreakMilestoneDays == 0
         )
         {
             if (user.LastStreakBonusAtDays < user.StreakCurrent)
             {
-                user.Points += Labverse.BLL.Gamification.XpRules.StreakMilestoneXp;
-                awarded += Labverse.BLL.Gamification.XpRules.StreakMilestoneXp;
+                user.Points += Gamification.XpRules.StreakMilestoneXp;
+                awarded += Gamification.XpRules.StreakMilestoneXp;
                 user.LastStreakBonusAtDays = user.StreakCurrent;
             }
         }
@@ -232,8 +235,8 @@ public class QuestionService : IQuestionService
 
                 if (progress == null || progress.Status != ProgressStatus.Completed)
                 {
-                    user.Points += Labverse.BLL.Gamification.XpRules.LabCompletionXp; // +50 XP for completing a lab
-                    awarded += Labverse.BLL.Gamification.XpRules.LabCompletionXp;
+                    user.Points += Gamification.XpRules.LabCompletionXp; // +50 XP for completing a lab
+                    awarded += Gamification.XpRules.LabCompletionXp;
 
                     // mark progress completed
                     if (progress == null)
@@ -326,7 +329,7 @@ public class QuestionService : IQuestionService
         // Total XP required to reach next level grows with current level (triangular progression)
         // requiredTotalXp(level L -> L+1) = BaseXp * (L * (L + 1) / 2)
         const int BaseXp = 100; // base scaling; adjust if needed
-        int RequiredTotalXp(int lvl) => Labverse.BLL.Gamification.XpRules.RequiredTotalXp(lvl);
+        int RequiredTotalXp(int lvl) => Gamification.XpRules.RequiredTotalXp(lvl);
 
         var leveledUp = false;
         while (user.Points >= RequiredTotalXp(user.Level))
@@ -353,7 +356,7 @@ public class QuestionService : IQuestionService
         var badge = _unitOfWork.Badges.Query().FirstOrDefault(b => b.Name == badgeName);
         if (badge == null)
         {
-            badge = new DAL.EntitiesModels.Badge
+            badge = new Badge
             {
                 Name = badgeName,
                 Description = $"Reached level {user.Level}",
@@ -369,7 +372,7 @@ public class QuestionService : IQuestionService
             .Any(ub => ub.UserId == user.Id && ub.BadgeId == badge.Id);
         if (!hasIt)
         {
-            var userBadge = new DAL.EntitiesModels.UserBadge
+            var userBadge = new UserBadge
             {
                 UserId = user.Id,
                 BadgeId = badge.Id,

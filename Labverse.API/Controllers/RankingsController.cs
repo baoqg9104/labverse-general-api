@@ -1,7 +1,6 @@
 using Labverse.API.Helpers;
-using Labverse.BLL.DTOs.Users;
 using Labverse.BLL.Interfaces;
-using Microsoft.AspNetCore.Authorization;
+using Labverse.DAL.EntitiesModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Labverse.API.Controllers;
@@ -17,20 +16,51 @@ public class RankingsController : ControllerBase
         _rankingService = rankingService;
     }
 
-    [HttpGet]
-    [Authorize]
-    public async Task<IActionResult> GetRankings([FromQuery] string criteria = "points", [FromQuery] int take = 50)
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUserRankings(
+        [FromQuery] string criteria = "points",
+        [FromQuery] int take = 50
+    )
     {
         try
         {
-            var crit = criteria.ToLower() == "streak" ? RankingCriteria.Streak : RankingCriteria.Points;
+            RankingCriteria crit = criteria.ToLower() switch
+            {
+                "streak" => RankingCriteria.Streak,
+                "badges" => RankingCriteria.Badges,
+                _ => RankingCriteria.Points,
+            };
             take = take <= 0 ? 50 : Math.Min(take, 100);
-            var result = await _rankingService.GetTopAsync(crit, take);
+            var result = await _rankingService.GetTopByRoleAsync(crit, UserRole.User, take);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            return ApiErrorHelper.Error("GET_RANKINGS_ERROR", ex.Message, 500);
+            return ApiErrorHelper.Error("GET_USER_RANKINGS_ERROR", ex.Message, 500);
+        }
+    }
+
+    [HttpGet("authors")]
+    public async Task<IActionResult> GetAuthorRankings(
+        [FromQuery] string criteria = "points",
+        [FromQuery] int take = 50
+    )
+    {
+        try
+        {
+            RankingCriteria crit = criteria.ToLower() switch
+            {
+                "streak" => RankingCriteria.Streak,
+                "badges" => RankingCriteria.Badges,
+                _ => RankingCriteria.Points,
+            };
+            take = take <= 0 ? 50 : Math.Min(take, 100);
+            var result = await _rankingService.GetTopByRoleAsync(crit, UserRole.Author, take);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return ApiErrorHelper.Error("GET_AUTHOR_RANKINGS_ERROR", ex.Message, 500);
         }
     }
 }
