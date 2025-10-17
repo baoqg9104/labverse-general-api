@@ -1,14 +1,20 @@
-using Labverse.BLL.DTOs.Users;
+using Labverse.BLL.DTOs.Ranking;
+using Labverse.DAL.EntitiesModels;
 
 namespace Labverse.BLL.Interfaces;
 
 public enum RankingCriteria
 {
     Points,
-    Streak
+    Streak,
+    Badges,
 }
 
 public interface IRankingService
 {
-    Task<IEnumerable<RankingDto>> GetTopAsync(RankingCriteria criteria, int take = 50);
+    Task<IEnumerable<RankingResponse>> GetTopByRoleAsync(
+        RankingCriteria criteria,
+        UserRole role,
+        int take = 50
+    );
 }
