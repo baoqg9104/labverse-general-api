@@ -128,6 +128,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IVectorService, VectorService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IKnowledgeImportService, KnowledgeImportService>();
+builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddHttpClient("supabase");
 builder.Services.AddHttpClient("gemini");
 
