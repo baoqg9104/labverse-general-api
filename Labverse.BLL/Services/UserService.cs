@@ -10,11 +10,13 @@ public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IFirebaseAuthService _firebaseAuthService;
+    private readonly IActivityLogService _activity;
 
-    public UserService(IUnitOfWork unitOfWork, IFirebaseAuthService firebaseAuthService)
+    public UserService(IUnitOfWork unitOfWork, IFirebaseAuthService firebaseAuthService, IActivityLogService activity)
     {
         _unitOfWork = unitOfWork;
         _firebaseAuthService = firebaseAuthService;
+        _activity = activity;
     }
 
     public async Task<UserDto> AddAsync(CreateUserDto dto)
@@ -38,6 +40,14 @@ public class UserService : IUserService
 
         await _unitOfWork.SaveChangesAsync();
 
+        // Log signup
+        await _activity.LogAsync(
+            user.Id,
+            "signup",
+            metadata: new { email = user.Email },
+            description: "Signed up successfully ✨"
+        );
+
         return MapToDto(user);
     }
 
@@ -50,6 +60,14 @@ public class UserService : IUserService
 
         if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             return null;
+
+        // Log password login
+        await _activity.LogAsync(
+            user.Id,
+            "login",
+            metadata: new { method = "password" },
+            description: "Signed in with password 🔐"
+        );
 
         return MapToDto(user);
     }
@@ -97,6 +115,14 @@ public class UserService : IUserService
 
         await _unitOfWork.SaveChangesAsync();
 
+        // Log Google login
+        await _activity.LogAsync(
+            user.Id,
+            "login",
+            metadata: new { method = "google" },
+            description: "Signed in with Google 🔐"
+        );
+
         return MapToDto(user);
     }
 
@@ -134,6 +160,14 @@ public class UserService : IUserService
         var totalAwarded = Gamification.XpRules.DailyLoginXp + milestone;
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync();
+
+        // Log daily login claim
+        await _activity.LogAsync(
+            user.Id,
+            "daily_login_claimed",
+            metadata: new { awarded = totalAwarded, baseXp = Gamification.XpRules.DailyLoginXp, milestoneXp = milestone },
+            description: $"Daily login reward: +{totalAwarded} XP 🎁"
+        );
 
         return (totalAwarded, MapToDto(user), null);
     }

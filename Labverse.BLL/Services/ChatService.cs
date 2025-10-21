@@ -172,8 +172,9 @@ public class ChatService : IChatService
         // Collapse excessive blank lines (allow max one blank line between paragraphs)
         text = Regex.Replace(text, @"(\n\s*){3,}", "\n\n");
 
-        var title = "🧪 Nexa";
-        var header = $"**{title}**\n\n";
-        return header + text;
+        //var title = "Nexa";
+        //var header = $"**{title}**\n\n";
+        //return header + text;
+        return text;
     }
 }

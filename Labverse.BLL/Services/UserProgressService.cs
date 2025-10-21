@@ -8,10 +8,12 @@ namespace Labverse.BLL.Services;
 public class UserProgressService : IUserProgressService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IActivityLogService _activity;
 
-    public UserProgressService(IUnitOfWork unitOfWork)
+    public UserProgressService(IUnitOfWork unitOfWork, IActivityLogService activity)
     {
         _unitOfWork = unitOfWork;
+        _activity = activity;
     }
 
     public async Task<IEnumerable<int>> GetCompletedLabsByUser(int userId)
@@ -71,6 +73,15 @@ public class UserProgressService : IUserProgressService
         }
 
         await _unitOfWork.SaveChangesAsync();
+
+        await _activity.LogAsync(
+            userId,
+            "lab_completed",
+            labId,
+            null,
+            new { labId },
+            description: "Completed cyber lab ✅"
+        );
     }
 
     public async Task MarkLabAsStarted(int userId, int labId)
@@ -99,5 +110,14 @@ public class UserProgressService : IUserProgressService
             _unitOfWork.UserProgresses.Update(progress);
         }
         await _unitOfWork.SaveChangesAsync();
+
+        await _activity.LogAsync(
+            userId,
+            "lab_started",
+            labId,
+            null,
+            new { labId },
+            description: "Started cyber lab 🚀"
+        );
     }
 }

@@ -4,6 +4,7 @@ using Labverse.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Labverse.DAL.Migrations
 {
     [DbContext(typeof(LabverseDbContext))]
-    partial class LabverseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251019070712_Add_LabView_LabRating_LabComment")]
+    partial class Add_LabView_LabRating_LabComment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -403,6 +406,9 @@ namespace Labverse.DAL.Migrations
 
                     b.Property<int>("LabId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Role")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");

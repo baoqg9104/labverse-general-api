@@ -83,17 +83,19 @@ builder.Services.AddSwaggerGen(options =>
     );
 });
 
+// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
-        "AllowFrontend",
+        "AppCorsPolicy",
         policy =>
         {
-            policy
-                .WithOrigins(builder.Configuration["Frontend:BaseUrl"])
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+            // Support multiple frontend origins via Frontend:BaseUrls (array) or fallback to Frontend:BaseUrl (single)
+            var allowedOrigins =
+                builder.Configuration.GetSection("Frontend:BaseUrls").Get<string[]>()
+                ?? new[] { builder.Configuration["Frontend:BaseUrl"] ?? "http://localhost:5173" };
+
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
         }
     );
 });
@@ -112,6 +114,8 @@ builder.Services.AddScoped<IEmailVerificationTokenRepository, EmailVerificationT
 
 // Register Services
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddScoped<IActivityQueryService, ActivityQueryService>();
 builder.Services.AddScoped<ILabService, LabService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -128,6 +132,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IVectorService, VectorService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IKnowledgeImportService, KnowledgeImportService>();
+builder.Services.AddScoped<ILabCommentService, LabCommentService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddHttpClient("supabase");
 builder.Services.AddHttpClient("gemini");
@@ -205,7 +210,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowFrontend");
+app.UseCors("AppCorsPolicy");
 
 app.UseHttpsRedirection();
 
