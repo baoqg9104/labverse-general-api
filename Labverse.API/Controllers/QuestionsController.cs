@@ -1,6 +1,7 @@
 using Labverse.API.Helpers;
 using Labverse.BLL.DTOs.Labs;
 using Labverse.BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -8,7 +9,6 @@ namespace Labverse.API.Controllers;
 
 [Route("api/labs/{labId:int}/questions")]
 [ApiController]
-//[Authorize]
 public class QuestionsController : ControllerBase
 {
     private readonly IQuestionService _questionService;
@@ -33,7 +33,10 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateQuestion([FromRoute] int labId, [FromBody] CreateLabQuestionDto dto)
+    public async Task<IActionResult> CreateQuestion(
+        [FromRoute] int labId,
+        [FromBody] CreateLabQuestionDto dto
+    )
     {
         try
         {
@@ -51,7 +54,11 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpPatch("{questionId:int}")]
-    public async Task<IActionResult> UpdateQuestion([FromRoute] int labId, [FromRoute] int questionId, [FromBody] UpdateLabQuestionDto dto)
+    public async Task<IActionResult> UpdateQuestion(
+        [FromRoute] int labId,
+        [FromRoute] int questionId,
+        [FromBody] UpdateLabQuestionDto dto
+    )
     {
         try
         {
@@ -69,7 +76,10 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpDelete("{questionId:int}")]
-    public async Task<IActionResult> DeleteQuestion([FromRoute] int labId, [FromRoute] int questionId)
+    public async Task<IActionResult> DeleteQuestion(
+        [FromRoute] int labId,
+        [FromRoute] int questionId
+    )
     {
         try
         {
@@ -87,7 +97,12 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpPost("{questionId:int}/answers")]
-    public async Task<IActionResult> SubmitAnswer([FromRoute] int labId, [FromRoute] int questionId, [FromBody] SubmitAnswerRequest request)
+    [Authorize(Roles = "user")]
+    public async Task<IActionResult> SubmitAnswer(
+        [FromRoute] int labId,
+        [FromRoute] int questionId,
+        [FromBody] SubmitAnswerRequest request
+    )
     {
         try
         {
@@ -95,7 +110,12 @@ public class QuestionsController : ControllerBase
             if (string.IsNullOrWhiteSpace(userIdStr) || !int.TryParse(userIdStr, out var userId))
                 return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
 
-            var result = await _questionService.SubmitAnswerAsync(userId, labId, questionId, request);
+            var result = await _questionService.SubmitAnswerAsync(
+                userId,
+                labId,
+                questionId,
+                request
+            );
             return Ok(result);
         }
         catch (InvalidOperationException ex)

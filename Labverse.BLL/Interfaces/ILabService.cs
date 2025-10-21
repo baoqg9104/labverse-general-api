@@ -12,4 +12,8 @@ public interface ILabService
     Task UpdateAsync(int id, UpdateLabDto dto);
     Task DeleteAsync(int id);
     Task RestoreAsync(int id);
+
+    // New features
+    Task TrackViewAsync(int labId, int? userId, string? ip);
+    Task<RateLabResponse> RateAsync(int labId, int userId, RateLabRequest req);
 }

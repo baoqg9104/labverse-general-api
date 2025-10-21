@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Net.payOS;
 using Net.payOS.Types;
 
-
 namespace Labverse.BLL.Services;
 
 public class PayOSService : IPayOSService
@@ -12,12 +11,19 @@ public class PayOSService : IPayOSService
     private readonly PayOS _payOS;
     private readonly IConfiguration _configuration;
     private readonly IUserSubscriptionService _userSubscriptionService;
+    private readonly IActivityLogService _activity;
 
-    public PayOSService(PayOS payOS, IConfiguration configuration, IUserSubscriptionService userSubscriptionService)
+    public PayOSService(
+        PayOS payOS,
+        IConfiguration configuration,
+        IUserSubscriptionService userSubscriptionService,
+        IActivityLogService activity
+    )
     {
         _payOS = payOS;
         _configuration = configuration;
         _userSubscriptionService = userSubscriptionService;
+        _activity = activity;
     }
 
     public async Task<PaymentLinkInformation> CancelOrder(long orderId)
@@ -32,7 +38,7 @@ public class PayOSService : IPayOSService
         await _payOS.confirmWebhook(dto.WebhookUrl);
     }
 
-    public async Task<CreatePaymentResult> CreatePaymentLink(SubscriptionRequest dto)
+    public async Task<CreatePaymentResult> CreatePaymentLink(int userId, SubscriptionRequest dto)
     {
         string domain = _configuration["Frontend:BaseUrl"] ?? "https://localhost:5173";
 
@@ -49,6 +55,22 @@ public class PayOSService : IPayOSService
 
         CreatePaymentResult createPayment = await _payOS.createPaymentLink(paymentLinkRequest);
 
+        try
+        {
+            await _activity.LogAsync(
+                userId,
+                "payment_link_created",
+                metadata: new
+                {
+                    amount = dto.Price,
+                    product = dto.ProductName,
+                    orderCode = createPayment.orderCode,
+                },
+                description: $"Payment link created for {dto.ProductName} ({dto.Price})"
+            );
+        }
+        catch { }
+
         return createPayment;
     }
 
@@ -63,11 +85,20 @@ public class PayOSService : IPayOSService
 
     public async Task<bool> ActivatePremiumIfPaidAsync(int userId, long orderId, int subscriptionId)
     {
-
         var info = await _payOS.getPaymentLinkInformation(orderId);
         if (string.Equals(info.status, "PAID", StringComparison.OrdinalIgnoreCase))
         {
             await _userSubscriptionService.CreateUserSubscriptionAsync(userId, subscriptionId);
+            try
+            {
+                await _activity.LogAsync(
+                    userId,
+                    "payment_completed",
+                    metadata: new { orderId, subscriptionId },
+                    description: "Payment completed; Premium activated ⭐"
+                );
+            }
+            catch { }
             return true;
         }
         return false;

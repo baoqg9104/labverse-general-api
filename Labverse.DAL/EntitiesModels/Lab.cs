@@ -22,4 +22,10 @@ public class Lab : BaseEntity
     public User Author { get; set; } = null!;
 
     public ICollection<LabQuestion> Questions { get; set; } = new List<LabQuestion>();
+
+    // Aggregates
+    public int Views { get; set; } = 0; // total view hits
+    public int UniqueUserViews { get; set; } = 0; // unique users (role User) who accessed
+    public double RatingAverage { get; set; } = 0.0; // average satisfaction rating (1-5)
+    public int RatingCount { get; set; } = 0; // number of ratings
 }

@@ -25,7 +25,16 @@ public class PaymentController : ControllerBase
     {
         try
         {
-            CreatePaymentResult createPayment = await _payOSService.CreatePaymentLink(dto);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+                return ApiErrorHelper.Error("UNAUTHORIZED", "User not authenticated", 401);
+            if (!int.TryParse(userId, out var userIdInt))
+                return ApiErrorHelper.Error("UNAUTHORIZED", "Invalid user id", 401);
+
+            CreatePaymentResult createPayment = await _payOSService.CreatePaymentLink(
+                userIdInt,
+                dto
+            );
             return Ok(createPayment);
         }
         catch (Exception ex)
@@ -53,7 +62,9 @@ public class PaymentController : ControllerBase
     {
         try
         {
-            PaymentLinkInformation paymentLinkInformation = await _payOSService.CancelOrder(orderId);
+            PaymentLinkInformation paymentLinkInformation = await _payOSService.CancelOrder(
+                orderId
+            );
             return Ok(paymentLinkInformation);
         }
         catch (Exception ex)
@@ -77,7 +88,9 @@ public class PaymentController : ControllerBase
     }
 
     [HttpPost("activate-premium")]
-    public async Task<IActionResult> ActivatePremiumIfPaid([FromBody] ConfirmSubscriptionRequest dto)
+    public async Task<IActionResult> ActivatePremiumIfPaid(
+        [FromBody] ConfirmSubscriptionRequest dto
+    )
     {
         try
         {
@@ -89,14 +102,22 @@ public class PaymentController : ControllerBase
             if (!int.TryParse(userId, out var userIdInt))
                 return ApiErrorHelper.Error("UNAUTHORIZED", "Invalid user id", 401);
 
-            bool result = await _payOSService.ActivatePremiumIfPaidAsync(userIdInt, dto.OrderId, dto.SubscriptionId);
+            bool result = await _payOSService.ActivatePremiumIfPaidAsync(
+                userIdInt,
+                dto.OrderId,
+                dto.SubscriptionId
+            );
             if (result)
             {
                 return Ok(new { message = "Premium activated successfully." });
             }
             else
             {
-                return ApiErrorHelper.Error("ACTIVATE_PREMIUM_FAILED", "Payment not completed or other issue", 400);
+                return ApiErrorHelper.Error(
+                    "ACTIVATE_PREMIUM_FAILED",
+                    "Payment not completed or other issue",
+                    400
+                );
             }
         }
         catch (Exception ex)

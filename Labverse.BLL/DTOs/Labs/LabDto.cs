@@ -15,4 +15,10 @@ public class LabDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool IsActive { get; set; }
+
+    // Aggregates
+    public int Views { get; set; }
+    public int UniqueUserViews { get; set; }
+    public double RatingAverage { get; set; }
+    public int RatingCount { get; set; }
 }

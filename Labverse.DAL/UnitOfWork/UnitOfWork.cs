@@ -24,6 +24,10 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<LabQuestion> LabQuestions { get; }
     public IRepository<UserLabAnswer> UserLabAnswers { get; }
     public IRepository<Report> Reports { get; }
+    public IRepository<ActivityHistory> ActivityHistories { get; }
+    public IRepository<LabView> LabViews { get; }
+    public IRepository<LabRating> LabRatings { get; }
+    public IRepository<LabComment> LabComments { get; }
 
     public UnitOfWork(
         LabverseDbContext context,
@@ -47,6 +51,10 @@ public class UnitOfWork : IUnitOfWork
         LabQuestions = new Repository<LabQuestion>(_context);
         UserLabAnswers = new Repository<UserLabAnswer>(_context);
         Reports = new Repository<Report>(_context);
+        ActivityHistories = new Repository<ActivityHistory>(_context);
+        LabViews = new Repository<LabView>(_context);
+        LabRatings = new Repository<LabRating>(_context);
+        LabComments = new Repository<LabComment>(_context);
     }
 
     public async Task<int> SaveChangesAsync()
@@ -94,4 +102,7 @@ public class UnitOfWork : IUnitOfWork
     {
         _context.Dispose();
     }
+
+    // Convenience to add any entity when specific repository is not exposed
+    public Task<T> AddAsync<T>(T entity) where T : class => _context.Set<T>().AddAsync(entity).AsTask().ContinueWith(t => entity);
 }

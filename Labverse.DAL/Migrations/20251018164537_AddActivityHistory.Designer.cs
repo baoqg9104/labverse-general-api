@@ -4,6 +4,7 @@ using Labverse.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Labverse.DAL.Migrations
 {
     [DbContext(typeof(LabverseDbContext))]
-    partial class LabverseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018164537_AddActivityHistory")]
+    partial class AddActivityHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,9 +39,6 @@ namespace Labverse.DAL.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -230,12 +230,6 @@ namespace Labverse.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<double>("RatingAverage")
-                        .HasColumnType("float");
-
-                    b.Property<int>("RatingCount")
-                        .HasColumnType("int");
-
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -244,14 +238,8 @@ namespace Labverse.DAL.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("UniqueUserViews")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("Views")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -261,47 +249,6 @@ namespace Labverse.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("Labs");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabComment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("LabId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LabId");
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("LabComments");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabQuestion", b =>
@@ -343,83 +290,6 @@ namespace Labverse.DAL.Migrations
                     b.HasIndex("LabId");
 
                     b.ToTable("LabQuestions");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabRating", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("LabId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Score")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("LabId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("LabRatings");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabView", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Ip")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("LabId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ViewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LabId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("LabViews");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.Message", b =>
@@ -940,32 +810,6 @@ namespace Labverse.DAL.Migrations
                     b.Navigation("Author");
                 });
 
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabComment", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.Lab", "Lab")
-                        .WithMany()
-                        .HasForeignKey("LabId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.LabComment", "Parent")
-                        .WithMany("Replies")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Lab");
-
-                    b.Navigation("Parent");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabQuestion", b =>
                 {
                     b.HasOne("Labverse.DAL.EntitiesModels.Lab", "Lab")
@@ -975,43 +819,6 @@ namespace Labverse.DAL.Migrations
                         .IsRequired();
 
                     b.Navigation("Lab");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabRating", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.Lab", "Lab")
-                        .WithMany()
-                        .HasForeignKey("LabId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Lab");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabView", b =>
-                {
-                    b.HasOne("Labverse.DAL.EntitiesModels.Lab", "Lab")
-                        .WithMany()
-                        .HasForeignKey("LabId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Labverse.DAL.EntitiesModels.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Lab");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.Message", b =>
@@ -1172,11 +979,6 @@ namespace Labverse.DAL.Migrations
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.Lab", b =>
                 {
                     b.Navigation("Questions");
-                });
-
-            modelBuilder.Entity("Labverse.DAL.EntitiesModels.LabComment", b =>
-                {
-                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Labverse.DAL.EntitiesModels.Subscription", b =>

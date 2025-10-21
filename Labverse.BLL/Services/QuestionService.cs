@@ -10,10 +10,12 @@ namespace Labverse.BLL.Services;
 public class QuestionService : IQuestionService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IActivityLogService _activity;
 
-    public QuestionService(IUnitOfWork unitOfWork)
+    public QuestionService(IUnitOfWork unitOfWork, IActivityLogService activity)
     {
         _unitOfWork = unitOfWork;
+        _activity = activity;
     }
 
     private static string BuildCorrectAnswerJson(
@@ -146,6 +148,8 @@ public class QuestionService : IQuestionService
 
         bool isCorrect = EvaluateAnswer(question, request.AnswerJson);
 
+        // No activity log for answer_submitted per requirement
+
         // Upsert user answer
         var existing = await _unitOfWork
             .UserLabAnswers.Query()
@@ -180,6 +184,14 @@ public class QuestionService : IQuestionService
         {
             user.Points += Gamification.XpRules.NewCorrectAnswerXp; // Points used as XP storage
             awarded += Gamification.XpRules.NewCorrectAnswerXp;
+            await _activity.LogAsync(
+                userId,
+                "xp_awarded",
+                labId,
+                questionId,
+                new { reason = "new_correct_answer", amount = Gamification.XpRules.NewCorrectAnswerXp },
+                description: $"Correct answer reward: +{Gamification.XpRules.NewCorrectAnswerXp} XP ?"
+            );
         }
 
         // Track streak (daily activity when submitting an answer)
@@ -188,6 +200,14 @@ public class QuestionService : IQuestionService
             DateTime.UtcNow
         );
         awarded += milestoneFromStreak;
+        await _activity.LogAsync(
+            userId,
+            "streak_progress",
+            labId,
+            questionId,
+            new { increased = streakIncreased, current = user.StreakCurrent, best = user.StreakBest, milestoneXp = milestoneFromStreak },
+            description: streakIncreased ? $"Streak progressed: {user.StreakCurrent} days ??" : "Active today ?"
+        );
 
         // Streak milestone: +100 XP at 7-day streak (and multiples)
         if (
@@ -237,6 +257,14 @@ public class QuestionService : IQuestionService
                 {
                     user.Points += Gamification.XpRules.LabCompletionXp; // +50 XP for completing a lab
                     awarded += Gamification.XpRules.LabCompletionXp;
+                    await _activity.LogAsync(
+                        userId,
+                        "xp_awarded",
+                        labId,
+                        null,
+                        new { reason = "lab_completed", amount = Gamification.XpRules.LabCompletionXp },
+                        description: $"Completed cyber lab: +{Gamification.XpRules.LabCompletionXp} XP ???"
+                    );
 
                     // mark progress completed
                     if (progress == null)
@@ -265,6 +293,18 @@ public class QuestionService : IQuestionService
         var beforeLevel = user.Level;
         ApplyLevelUps(user);
         var afterLevel = user.Level;
+
+        if (afterLevel > beforeLevel)
+        {
+            await _activity.LogAsync(
+                userId,
+                "level_up",
+                labId,
+                null,
+                new { from = beforeLevel, to = afterLevel },
+                description: $"Level up: {beforeLevel} ? {afterLevel} ??"
+            );
+        }
 
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync();
@@ -328,7 +368,6 @@ public class QuestionService : IQuestionService
     {
         // Total XP required to reach next level grows with current level (triangular progression)
         // requiredTotalXp(level L -> L+1) = BaseXp * (L * (L + 1) / 2)
-        const int BaseXp = 100; // base scaling; adjust if needed
         int RequiredTotalXp(int lvl) => Gamification.XpRules.RequiredTotalXp(lvl);
 
         var leveledUp = false;
@@ -379,6 +418,9 @@ public class QuestionService : IQuestionService
                 DateAwarded = DateTime.UtcNow,
             };
             _unitOfWork.UserBadges.AddAsync(userBadge).GetAwaiter().GetResult();
+
+            // Log badge award
+            _activity.LogAsync(user.Id, "badge_awarded", null, null, new { badge = badgeName }).GetAwaiter().GetResult();
         }
     }
 }

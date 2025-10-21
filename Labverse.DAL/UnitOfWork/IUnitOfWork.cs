@@ -18,6 +18,10 @@ public interface IUnitOfWork : IDisposable
     IRepository<LabQuestion> LabQuestions { get; }
     IRepository<UserLabAnswer> UserLabAnswers { get; }
     IRepository<Report> Reports { get; }
+    IRepository<ActivityHistory> ActivityHistories { get; }
+    IRepository<LabView> LabViews { get; }
+    IRepository<LabRating> LabRatings { get; }
+    IRepository<LabComment> LabComments { get; }
 
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();

@@ -1,23 +1,30 @@
-using System.Text;
-using System.Text.Json;
 using Labverse.BLL.DTOs.Reports;
 using Labverse.BLL.Interfaces;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
 
 namespace Labverse.BLL.Services;
 
 public class ReportService : IReportService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IActivityLogService _activity;
 
-    public ReportService(IUnitOfWork uow)
+    public ReportService(IUnitOfWork uow, IActivityLogService activity)
     {
         _uow = uow;
+        _activity = activity;
     }
 
-    public async Task<ReportDto> CreateAsync(int reporterId, string reporterEmail, CreateReportRequest req, string ip)
+    public async Task<ReportDto> CreateAsync(
+        int reporterId,
+        string reporterEmail,
+        CreateReportRequest req,
+        string ip
+    )
     {
         ValidateCreate(req);
         var imagePaths = (req.ImagePaths ?? Array.Empty<string>()).Take(5).ToArray();
@@ -30,10 +37,23 @@ public class ReportService : IReportService
             Title = Sanitize(req.Title),
             Description = Sanitize(req.Description),
             Status = ReportStatus.Open,
-            ImagePathsJson = JsonSerializer.Serialize(imagePaths)
+            ImagePathsJson = JsonSerializer.Serialize(imagePaths),
         };
         await _uow.Reports.AddAsync(entity);
         await _uow.SaveChangesAsync();
+        await _activity.LogAsync(
+            reporterId,
+            "report_created",
+            null,
+            null,
+            new
+            {
+                reportId = entity.Id,
+                type = entity.Type.ToString(),
+                severity = entity.Severity.ToString(),
+            },
+            description: $"Created report: {entity.Title} ??"
+        );
         return ToDto(entity);
     }
 
@@ -60,7 +80,11 @@ public class ReportService : IReportService
         if (!string.IsNullOrWhiteSpace(q.Q))
         {
             var term = q.Q.Trim();
-            query = query.Where(r => r.Title.Contains(term) || r.Description.Contains(term) || r.ReporterEmail.Contains(term));
+            query = query.Where(r =>
+                r.Title.Contains(term)
+                || r.Description.Contains(term)
+                || r.ReporterEmail.Contains(term)
+            );
         }
 
         // period / since-until
@@ -68,19 +92,29 @@ public class ReportService : IReportService
         DateTime? until = q.Until;
         if (!since.HasValue && !until.HasValue)
         {
-            if (q.Period == "7d") since = DateTime.UtcNow.AddDays(-7);
-            else if (q.Period == "30d") since = DateTime.UtcNow.AddDays(-30);
+            if (q.Period == "7d")
+                since = DateTime.UtcNow.AddDays(-7);
+            else if (q.Period == "30d")
+                since = DateTime.UtcNow.AddDays(-30);
         }
-        if (since.HasValue) query = query.Where(r => r.CreatedAt >= since.Value);
-        if (until.HasValue) query = query.Where(r => r.CreatedAt <= until.Value);
+        if (since.HasValue)
+            query = query.Where(r => r.CreatedAt >= since.Value);
+        if (until.HasValue)
+            query = query.Where(r => r.CreatedAt <= until.Value);
 
         // sorting
         bool desc = q.SortDir?.ToLower() != "asc";
         query = q.SortBy?.ToLower() switch
         {
-            "status" => (desc ? query.OrderByDescending(r => r.Status) : query.OrderBy(r => r.Status)),
-            "severity" => (desc ? query.OrderByDescending(r => r.Severity) : query.OrderBy(r => r.Severity)),
-            _ => (desc ? query.OrderByDescending(r => r.CreatedAt) : query.OrderBy(r => r.CreatedAt)),
+            "status" => (
+                desc ? query.OrderByDescending(r => r.Status) : query.OrderBy(r => r.Status)
+            ),
+            "severity" => (
+                desc ? query.OrderByDescending(r => r.Severity) : query.OrderBy(r => r.Severity)
+            ),
+            _ => (
+                desc ? query.OrderByDescending(r => r.CreatedAt) : query.OrderBy(r => r.CreatedAt)
+            ),
         };
 
         var page = Math.Max(1, q.Page);
@@ -93,7 +127,7 @@ public class ReportService : IReportService
             Items = items.Select(ToDto),
             Page = page,
             PageSize = pageSize,
-            Total = total
+            Total = total,
         };
     }
 
@@ -105,7 +139,9 @@ public class ReportService : IReportService
 
     public async Task<ReportDto> UpdateAsync(int id, int adminId, UpdateReportRequest req)
     {
-        var e = await _uow.Reports.GetByIdAsync(id) ?? throw new KeyNotFoundException("Report not found");
+        var e =
+            await _uow.Reports.GetByIdAsync(id)
+            ?? throw new KeyNotFoundException("Report not found");
         if (req.Status.HasValue)
         {
             // transitions allowed: any between Open, InReview, Resolved
@@ -124,6 +160,19 @@ public class ReportService : IReportService
         e.UpdatedAt = DateTime.UtcNow;
         _uow.Reports.Update(e);
         await _uow.SaveChangesAsync();
+        await _activity.LogAsync(
+            adminId,
+            "report_updated",
+            null,
+            null,
+            new
+            {
+                reportId = e.Id,
+                status = e.Status.ToString(),
+                assignedAdminId = e.AssignedAdminId,
+            },
+            description: $"Updated report: #{e.Id} ??"
+        );
         return ToDto(e);
     }
 
@@ -134,14 +183,23 @@ public class ReportService : IReportService
         sb.AppendLine("id,reporterId,reporterEmail,type,severity,title,status,createdAt");
         foreach (var r in page.Items)
         {
-            sb.AppendLine($"{r.Id},{r.ReporterId},\"{r.ReporterEmail}\",{r.Type},{r.Severity},\"{EscapeCsv(r.Title)}\",{r.Status},{r.CreatedAt:O}");
+            sb.AppendLine(
+                $"{r.Id},{r.ReporterId},\"{r.ReporterEmail}\",{r.Type},{r.Severity},\"{EscapeCsv(r.Title)}\",{r.Status},{r.CreatedAt:O}"
+            );
         }
         return sb.ToString();
     }
 
-    public async Task<ReportsPageDto<ReportDto>> ListMineAsync(int reporterId, int page, int pageSize)
+    public async Task<ReportsPageDto<ReportDto>> ListMineAsync(
+        int reporterId,
+        int page,
+        int pageSize
+    )
     {
-        var query = _uow.Reports.Query().Where(r => r.ReporterId == reporterId).OrderByDescending(r => r.CreatedAt);
+        var query = _uow
+            .Reports.Query()
+            .Where(r => r.ReporterId == reporterId)
+            .OrderByDescending(r => r.CreatedAt);
         var total = await query.CountAsync();
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return new ReportsPageDto<ReportDto>
@@ -149,7 +207,7 @@ public class ReportService : IReportService
             Items = items.Select(ToDto),
             Page = page,
             PageSize = pageSize,
-            Total = total
+            Total = total,
         };
     }
 
@@ -161,10 +219,12 @@ public class ReportService : IReportService
             throw new ArgumentException("Invalid description");
         if (req.ImagePaths != null)
         {
-            if (req.ImagePaths.Length > 5) throw new ArgumentException("Too many images");
+            if (req.ImagePaths.Length > 5)
+                throw new ArgumentException("Too many images");
             foreach (var p in req.ImagePaths)
             {
-                if (string.IsNullOrWhiteSpace(p)) throw new ArgumentException("Invalid image path");
+                if (string.IsNullOrWhiteSpace(p))
+                    throw new ArgumentException("Invalid image path");
             }
         }
     }
@@ -175,7 +235,9 @@ public class ReportService : IReportService
         return input.Replace("<", string.Empty).Replace(">", string.Empty);
     }
 
-    private static ReportType ParseType(string s) => Enum.TryParse<ReportType>(s, true, out var v) ? v : ReportType.Other;
+    private static ReportType ParseType(string s) =>
+        Enum.TryParse<ReportType>(s, true, out var v) ? v : ReportType.Other;
+
     private static ReportStatus ParseStatus(string s)
     {
         return s.ToLower() switch
@@ -183,10 +245,12 @@ public class ReportService : IReportService
             "open" => ReportStatus.Open,
             "in review" or "inreview" => ReportStatus.InReview,
             "resolved" => ReportStatus.Resolved,
-            _ => ReportStatus.Open
+            _ => ReportStatus.Open,
         };
     }
-    private static ReportSeverity ParseSeverity(string s) => Enum.TryParse<ReportSeverity>(s, true, out var v) ? v : ReportSeverity.Low;
+
+    private static ReportSeverity ParseSeverity(string s) =>
+        Enum.TryParse<ReportSeverity>(s, true, out var v) ? v : ReportSeverity.Low;
 
     private static string EscapeCsv(string s) => s.Replace("\"", "\"\"");
 
@@ -213,7 +277,7 @@ public class ReportService : IReportService
             ResolvedAt = e.ResolvedAt,
             ImagePaths = paths,
             CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt
+            UpdatedAt = e.UpdatedAt,
         };
     }
 }
