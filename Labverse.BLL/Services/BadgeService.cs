@@ -1,6 +1,7 @@
 ﻿using Labverse.BLL.Interfaces;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 
 namespace Labverse.BLL.Services
 {
@@ -32,6 +33,46 @@ namespace Labverse.BLL.Services
             }
 
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<Badge> CreateAsync(Badge badge)
+        {
+            var result = await _unitOfWork.Badges.AddAsync(badge);
+            await _unitOfWork.SaveChangesAsync();
+            return result;
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var badge = await _unitOfWork.Badges.GetByIdAsync(id);
+            if (badge == null) return false;
+
+            _unitOfWork.Badges.Remove(badge);
+            await _unitOfWork.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<IEnumerable<Badge>> GetAllAsync()
+        {
+            return await _unitOfWork.Badges .GetAllAsync();
+        }
+
+        public async Task<Badge?> GetByIdAsync(int id)
+        {
+            return await _unitOfWork.Badges.GetByIdAsync(id);
+        }
+
+        public async Task<Badge?> UpdateAsync(int id, Badge updated)
+        {
+            var badge = await _unitOfWork.Badges.GetByIdAsync(id);
+            if (badge == null) return null;
+
+            badge.Name = updated.Name;
+            badge.Description = updated.Description;
+            badge.IconUrl = updated.IconUrl;
+
+            await _unitOfWork.SaveChangesAsync();
+            return badge;
         }
 
         private bool ShouldAward(Badge badge, User user)
