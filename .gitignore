@@ -483,3 +483,4 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+Labverse.API/appsettings.Production.json
