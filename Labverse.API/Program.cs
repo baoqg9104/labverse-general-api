@@ -100,10 +100,10 @@ builder.Services.AddCors(options =>
     );
 });
 
+var connectionString = Environment.GetEnvironmentVariable("AZURE_SQL_CONNECTION");
+
 // Configure DbContext with SQL Server
-builder.Services.AddDbContext<LabverseDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+builder.Services.AddDbContext<LabverseDbContext>(options => options.UseSqlServer(connectionString));
 
 // Register UnitOfWork and Repositories
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
