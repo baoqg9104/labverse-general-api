@@ -11,23 +11,16 @@ RUN dotnet restore "Labverse.API/Labverse.API.csproj"
 
 # copy rest of the files and publish
 COPY . .
-RUN dotnet publish "Labverse.API/Labverse.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
+RUN dotnet publish "Labverse.API/Labverse.API.csproj" -c Release -o /app/publish
 
 # Runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
-
-# default port for Render; Render will inject PORT at runtime
-ENV PORT=10000
-ENV ASPNETCORE_URLS=http://+:${PORT}
-
-# copy published output
 COPY --from=build /app/publish .
 
-EXPOSE ${PORT}
-
-# Run as non-root user for better security
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
+# default port for Render; Render will inject PORT at runtime
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 
 ENTRYPOINT ["dotnet", "Labverse.API.dll"]
