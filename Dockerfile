@@ -2,31 +2,32 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy csproj files and restore as a separate layer
-COPY ./Labverse.API/Labverse.API.csproj ./Labverse.API/
-COPY ./Labverse.BLL/Labverse.BLL.csproj ./Labverse.BLL/
-COPY ./Labverse.DAL/Labverse.DAL.csproj ./Labverse.DAL/
+# copy csproj files and restore
+COPY ["Labverse.API/Labverse.API.csproj", "Labverse.API/"]
+COPY ["Labverse.BLL/Labverse.BLL.csproj", "Labverse.BLL/"]
+COPY ["Labverse.DAL/Labverse.DAL.csproj", "Labverse.DAL/"]
 
-# Restore
-RUN dotnet restore ./Labverse.API/Labverse.API.csproj
+RUN dotnet restore "Labverse.API/Labverse.API.csproj"
 
-# Copy everything else and build
+# copy rest of the files and publish
 COPY . .
-RUN dotnet build ./Labverse.API/Labverse.API.csproj -c Release -o /app/build --no-restore
-
-# Publish
-RUN dotnet publish ./Labverse.API/Labverse.API.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish "Labverse.API/Labverse.API.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 # Runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-# Copy published output
+# default port for Render; Render will inject PORT at runtime
+ENV PORT=10000
+ENV ASPNETCORE_URLS=http://+:${PORT}
+
+# copy published output
 COPY --from=build /app/publish .
 
-# Environment
-ENV ASPNETCORE_URLS=http://+:80
-EXPOSE 80
+EXPOSE ${PORT}
 
-# Entry
+# Run as non-root user for better security
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
+
 ENTRYPOINT ["dotnet", "Labverse.API.dll"]
