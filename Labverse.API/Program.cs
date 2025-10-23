@@ -121,8 +121,6 @@ builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IFirebaseAuthService, FirebaseAuthService>();
 builder.Services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 builder.Services.AddScoped<IPayOSService, PayOSService>();
 builder.Services.AddScoped<IUserProgressService, UserProgressService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
@@ -134,6 +132,7 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IKnowledgeImportService, KnowledgeImportService>();
 builder.Services.AddScoped<ILabCommentService, LabCommentService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
+builder.Services.AddScoped<IEmailJsService, EmailJsService>();
 builder.Services.AddHttpClient("supabase");
 builder.Services.AddHttpClient("gemini");
 
@@ -173,6 +172,9 @@ PayOS payOS = new PayOS(
 );
 
 builder.Services.AddSingleton(payOS);
+
+// Configure EmailJS settings
+builder.Services.Configure<EmailJsSettings>(builder.Configuration.GetSection("EmailJs"));
 
 // Configure Authentication and Authorization
 builder

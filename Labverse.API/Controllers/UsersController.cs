@@ -15,7 +15,7 @@ public class UsersController : ControllerBase
     private readonly IJwtService _jwtService;
     private readonly IRefreshTokenService _refreshTokenService;
     private readonly IRecaptchaService _recaptchaService;
-    private readonly IEmailVerificationService _emailVerificationService;
+    private readonly IEmailJsService _emailJsService;
     private readonly IConfiguration _configuration;
 
     public UsersController(
@@ -23,18 +23,18 @@ public class UsersController : ControllerBase
         IJwtService jwtService,
         IRefreshTokenService refreshTokenService,
         IRecaptchaService recaptchaService,
-        IEmailVerificationService emailVerificationService,
         IConfiguration configuration,
-        IFirebaseAuthService firebaseAuthService
+        IFirebaseAuthService firebaseAuthService,
+        IEmailJsService emailJsService
     )
     {
         _userService = userService;
         _jwtService = jwtService;
         _refreshTokenService = refreshTokenService;
         _recaptchaService = recaptchaService;
-        _emailVerificationService = emailVerificationService;
         _configuration = configuration;
         _ = firebaseAuthService; // ensure DI for service availability
+        _emailJsService = emailJsService;
     }
 
     [HttpGet]
@@ -289,7 +289,7 @@ public class UsersController : ControllerBase
 
             if (user.EmailVerifiedAt == null)
             {
-                await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
+                await _emailJsService.SendVerificationEmailAsync(user.Id, user.Email);
                 return ApiErrorHelper.Error("EMAIL_NOT_VERIFIED", "Email not verified.", 401);
             }
 
@@ -363,7 +363,7 @@ public class UsersController : ControllerBase
         try
         {
             var user = await _userService.AddAsync(dto);
-            await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
+            await _emailJsService.SendVerificationEmailAsync(user.Id, user.Email);
             return Ok(
                 new
                 {
@@ -390,7 +390,7 @@ public class UsersController : ControllerBase
         try
         {
             var decodedToken = Uri.UnescapeDataString(token.Replace(" ", "+"));
-            var result = await _emailVerificationService.VerifyTokenAsync(decodedToken);
+            var result = await _emailJsService.VerifyTokenAsync(decodedToken);
             var status = result ? "success" : "error";
             var message = result ? "Email verified successfully." : "Invalid or expired token.";
             var redirectUrl =
@@ -419,7 +419,7 @@ public class UsersController : ControllerBase
                     "Email already verified",
                     400
                 );
-            await _emailVerificationService.SendVerificationEmailAsync(user.Id, user.Email);
+            await _emailJsService.SendVerificationEmailAsync(user.Id, user.Email);
             return Ok(new { message = "Verification email resent successfully." });
         }
         catch (Exception ex)
