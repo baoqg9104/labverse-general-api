@@ -1,17 +1,19 @@
-﻿using Labverse.BLL.Interfaces;
+﻿using Labverse.BLL.DTOs.Badge;
+using Labverse.BLL.Interfaces;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
-using Microsoft.EntityFrameworkCore;
 
 namespace Labverse.BLL.Services
 {
     public class BadgeService : IBadgeService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISupabaseService _supabaseService;
 
-        public BadgeService(IUnitOfWork unitOfWork)
+        public BadgeService(IUnitOfWork unitOfWork, ISupabaseService supabaseService)
         {
             _unitOfWork = unitOfWork;
+            _supabaseService = supabaseService;
         }
 
         public async Task AwardBadgesAsync(User user)
@@ -35,11 +37,27 @@ namespace Labverse.BLL.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<Badge> CreateAsync(Badge badge)
+        public async Task<Badge> CreateAsync(BadgesRequest request)
         {
-            var result = await _unitOfWork.Badges.AddAsync(badge);
+            string iconUrl = string.Empty;
+
+            if (request.Icon != null)
+            {
+                using var stream = request.Icon.OpenReadStream();
+                iconUrl = await _supabaseService.UploadBadgeIconAsync(stream, request.Icon.FileName);
+            }
+
+            var badge = new Badge
+            {
+                Name = request.Name,
+                Description = request.Description,
+                IconUrl = iconUrl
+            };
+
+            await _unitOfWork.Badges.AddAsync(badge);
             await _unitOfWork.SaveChangesAsync();
-            return result;
+
+            return badge;
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -54,7 +72,7 @@ namespace Labverse.BLL.Services
 
         public async Task<IEnumerable<Badge>> GetAllAsync()
         {
-            return await _unitOfWork.Badges .GetAllAsync();
+            return await _unitOfWork.Badges.GetAllAsync();
         }
 
         public async Task<Badge?> GetByIdAsync(int id)
@@ -62,15 +80,24 @@ namespace Labverse.BLL.Services
             return await _unitOfWork.Badges.GetByIdAsync(id);
         }
 
-        public async Task<Badge?> UpdateAsync(int id, Badge updated)
+        public async Task<Badge?> UpdateAsync(int id, BadgesRequest request)
         {
             var badge = await _unitOfWork.Badges.GetByIdAsync(id);
             if (badge == null) return null;
 
-            badge.Name = updated.Name;
-            badge.Description = updated.Description;
-            badge.IconUrl = updated.IconUrl;
+            string iconUrl = string.Empty;
 
+            if (request.Icon != null)
+            {
+                using var stream = request.Icon.OpenReadStream();
+                iconUrl = await _supabaseService.UploadBadgeIconAsync(stream, request.Icon.FileName);
+            }
+
+            badge.Name = request.Name;
+            badge.Description = request.Description;
+            badge.IconUrl = iconUrl;
+
+            _unitOfWork.Badges.Update(badge);
             await _unitOfWork.SaveChangesAsync();
             return badge;
         }

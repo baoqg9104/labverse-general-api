@@ -133,6 +133,7 @@ builder.Services.AddScoped<IKnowledgeImportService, KnowledgeImportService>();
 builder.Services.AddScoped<ILabCommentService, LabCommentService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<IEmailJsService, EmailJsService>();
+builder.Services.AddScoped<ISupabaseService, SupabaseService>();
 builder.Services.AddHttpClient("supabase");
 builder.Services.AddHttpClient("gemini");
 

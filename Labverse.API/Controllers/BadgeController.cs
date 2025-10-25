@@ -1,5 +1,5 @@
-﻿using Labverse.BLL.Services;
-using Labverse.DAL.EntitiesModels;
+﻿using Labverse.BLL.DTOs.Badge;
+using Labverse.BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +9,9 @@ namespace Labverse.API.Controllers
     [ApiController]
     public class BadgeController : ControllerBase
     {
-        private readonly BadgeService _badgeService;
+        private readonly IBadgeService _badgeService;
 
-        public BadgeController(BadgeService badgeService)
+        public BadgeController(IBadgeService badgeService)
         {
             _badgeService = badgeService;
         }
@@ -32,21 +32,22 @@ namespace Labverse.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromBody] Badge badge)
+        //[Authorize(Roles = "Admin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Create([FromForm] BadgesRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var newBadge = await _badgeService.CreateAsync(badge);
+            var newBadge = await _badgeService.CreateAsync(request);
             return CreatedAtAction(nameof(GetById), new { id = newBadge.Id }, newBadge);
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] Badge updated)
+        public async Task<IActionResult> Update(int id, [FromForm] BadgesRequest request)
         {
-            var result = await _badgeService.UpdateAsync(id, updated);
+            var result = await _badgeService.UpdateAsync(id, request);
             if (result == null) return NotFound();
             return Ok(result);
         }
