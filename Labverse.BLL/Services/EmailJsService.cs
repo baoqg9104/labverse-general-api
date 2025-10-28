@@ -4,6 +4,7 @@ using Labverse.BLL.Settings;
 using Labverse.DAL.EntitiesModels;
 using Labverse.DAL.UnitOfWork;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 
@@ -19,13 +20,13 @@ public class EmailJsService : IEmailJsService
     public EmailJsService(
         IUnitOfWork unitOfWork,
         HttpClient httpClient,
-        EmailJsSettings emailJsSettings,
+        IOptions<EmailJsSettings> emailJsSettings,
         IConfiguration configuration
     )
     {
         _unitOfWork = unitOfWork;
         _httpClient = httpClient;
-        _emailJsSettings = emailJsSettings;
+        _emailJsSettings = emailJsSettings.Value;
         _configuration = configuration;
     }
 
