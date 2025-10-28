@@ -111,6 +111,8 @@ public class EmailJsService : IEmailJsService
 
         var templateParams = new { email, verifyUrl };
 
-        await SendEmailAsync(_emailJsSettings.VerificationEmailTemplateId, templateParams);
+        Console.WriteLine($"Template ID: {_emailJsSettings.VerifyEmailTemplateId}");
+
+        await SendEmailAsync(_emailJsSettings.VerifyEmailTemplateId, templateParams);
     }
 }
