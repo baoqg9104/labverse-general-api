@@ -54,14 +54,17 @@ public class EmailJsService : IEmailJsService
         var entity = await _unitOfWork.EmailVerificationTokens.GetByTokenAsync(token);
         if (entity == null || entity.IsUsed || entity.Expires < DateTime.UtcNow)
             return false;
+
+        // Mark token as used. Entities retrieved from repository are tracked by EF, so no explicit Update is necessary.
         entity.IsUsed = true;
-        _unitOfWork.EmailVerificationTokens.Update(entity);
+
+        // Fetch the user by id (tracked) and update the verification timestamp. Avoid calling Update to prevent accidental inserts.
         var user = await _unitOfWork.Users.GetByIdAsync(entity.UserId);
         if (user != null)
         {
             user.EmailVerifiedAt = DateTime.UtcNow;
-            _unitOfWork.Users.Update(user);
         }
+
         await _unitOfWork.SaveChangesAsync();
         return true;
     }
@@ -111,8 +114,7 @@ public class EmailJsService : IEmailJsService
 
         var templateParams = new { email, verifyUrl };
 
-        Console.WriteLine($"Template ID: {_emailJsSettings.VerifyEmailTemplateId}");
-
+        // Use the correct settings property name
         await SendEmailAsync(_emailJsSettings.VerifyEmailTemplateId, templateParams);
     }
 }
